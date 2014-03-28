@@ -1,4 +1,4 @@
-app.controller('SubjectController', [ '$scope', 'socket', function ($scope, socket) {
+app.controller('ExperimenterController', [ '$scope', 'socket', function ($scope, socket) {
     $scope.getYourName = function () {
         return $scope.yourName;
     }
