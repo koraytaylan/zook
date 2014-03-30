@@ -1,46 +1,47 @@
-app.factory('SocketService', ['$q', '$rootScope', function($q, $rootScope) {
-    // We return this object to anything injecting our service
-    var service = {};
-    // Keep all pending requests here until they get responses
-    var callbacks = {};
-    // Create a unique callback ID to map requests to responses
-    var currentId = 0;
+/*jslint browser: true*/
+/*global angular, app, WebSocket, localStorage*/
+app.factory('SocketService', ['$q', '$rootScope', function ($q, $rootScope) {
+    'use strict';
+    var service = {},
+        callbacks = {},
+        lastId = 0,
+        onOpenCallbacks = [],
+        onCloseCallbacks = [],
+        onInitializeCallbacks = [],
+        ws = null,
+        notify = function () {
+            var args = arguments,
+                cbs = [].shift.apply(args);
+            angular.forEach(cbs, function (callback) {
+                callback.apply(this, args);
+            });
+        };
 
-    var notify = function () {
-        var args = arguments;
-        var callbacks = [].shift.apply(args);
-        angular.forEach(callbacks, function(callback){
-            callback.apply(this, args);
-        });  
-    };
+    ws = new WebSocket("ws://localhost:8080/socket");
 
-    var onOpenCallbacks = [];
+    service.isInitialized = false;
+
     service.onOpen = function (callback) {
         onOpenCallbacks.push(callback);
     };
 
-    var onCloseCallbacks = [];
     service.onClose = function (callback) {
         onCloseCallbacks.push(callback);
-    }
+    };
 
-    var onInitializeCallbacks = [];
     service.onInitialize = function (callback) {
         onInitializeCallbacks.push(callback);
-    }
+    };
 
-    // Create our websocket object with the address to the websocket
-    var ws = new WebSocket("ws://localhost:8080/socket");
-
-    service.isInitialized = false;
     service.send = function (type, message) {
-        var defer = $q.defer();
-        var request = {
-            id: ++currentId,
-            timestamp: new Date().getTime(),
-            type: type,
-            data: message
-        };
+        lastId += 1;
+        var defer = $q.defer(),
+            request = {
+                id: lastId,
+                timestamp: new Date().getTime(),
+                type: type,
+                data: message
+            };
         callbacks[request.id] = {
             timestamp: request.timestamp,
             defer: defer
@@ -49,10 +50,11 @@ app.factory('SocketService', ['$q', '$rootScope', function($q, $rootScope) {
         ws.send(JSON.stringify(request));
         return defer.promise;
     };
-    
+
     service.initialize = function () {
         return service.send('initialize', localStorage.getItem('key')).then(function (message) {
-            localStorage.setItem('key', message.data);
+            var data = message.data;
+            localStorage.setItem('key', data.key);
             service.isInitialized = true;
         });
     };
@@ -61,11 +63,11 @@ app.factory('SocketService', ['$q', '$rootScope', function($q, $rootScope) {
         return service.send('echo', message);
     };
 
-    ws.onopen = function(){  
+    ws.onopen = function () {
         console.log("Socket: opened!");
         notify(onOpenCallbacks);
-        service.initialize().then(function() {
-            notify(onInitializeCallbacks);
+        service.initialize().then(function (message) {
+            notify(onInitializeCallbacks, message);
         });
     };
 
@@ -74,14 +76,25 @@ app.factory('SocketService', ['$q', '$rootScope', function($q, $rootScope) {
         notify(onCloseCallbacks);
     };
 
-    ws.onmessage = function(message) {
-        var data = JSON.parse(message.data);
-        data.roundtrip = new Date().getTime() - data.timestamp;
-        console.log('Socket: message received ' + data.roundtrip + 'ms', data);
-        if(callbacks.hasOwnProperty(data.id)) {
-            var cb = callbacks[data.id];
-            $rootScope.$apply(cb.defer.resolve(data));
-            delete callbacks[data.id];
+    ws.onmessage = function (message) {
+        var cb = null;
+        try {
+            message = JSON.parse(message.data);
+        } catch (ex) {
+            console.log('Socket: invalid message received', message);
+        }
+        if (message !== null) {
+            if (callbacks.hasOwnProperty(message.id)) {
+                cb = callbacks[message.id];
+                message.isReply = true;
+                message.roundtrip = new Date().getTime() - cb.timestamp;
+                console.log('Socket: message reply received ' + message.roundtrip + 'ms', message);
+                $rootScope.$apply(cb.defer.resolve(message));
+                delete callbacks[message.id];
+            } else {
+                message.isReply = false;
+                console.log('Socket: message received', message);
+            }
         }
     };
 

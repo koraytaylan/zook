@@ -7,34 +7,88 @@
     <link rel="stylesheet" href="lib/normalize/normalize.css">
     <link rel="stylesheet" href="lib/bootstrap/css/bootstrap.min.css">
     <link rel="stylesheet" href="lib/bootstrap/css/bootstrap-theme.min.css">
+    <link rel="stylesheet" href="lib/font-awesome/css/font-awesome.min.css">
     <link rel="stylesheet" href="css/main.css">
     
     <script src="lib/jquery/jquery-2.1.0.min.js"></script>
     <script src="lib/bootstrap/js/bootstrap.min.js"></script>
     <script src="lib/angular/angular.min.js"></script>
+    <script src="lib/angular/angular-timer.min.js"></script>
     
     <script src="js/controllers.js"></script>
-    <script src="js/services.js"></script>
+    <script src="js/socket.service.js"></script>
 
   </head>
-  <body>
+  <body ng-controller="MainCtrl">
     <div class="block" style="height:100%;">
       <div class="centered">
         <div class="container-fluid" style="text-align:left;">
           <div class="row">
-            <div class="col-md-12" ng-controller="MainCtrl">
+            <div class="col-md-12">
+
+              <div class="panel panel-default">
+                <div class="panel-heading">
+                  <div class="pull-left">
+                    {{title}}
+                  </div>
+                  <div class="pull-right">
+                    <span ng-show="timerIsRunning">{{getRemainingTime()}}s</span>
+                  </div>
+                  <div class="clearfix"></div>
+                </div>
+                <div class="panel-body">
+                  Panel content
+                  <div class="clearfix"></div>
+                </div>
+                <div class="panel-footer">
+                  <div class="pull-left">
+                    <button type="button" class="btn btn-info" ng-click="instructionsVisible = !instructionsVisible">
+                      <span class="glyphicon glyphicon-info-sign"></span> Instructions
+                    </button>
+                  </div>
+                  <div class="btn-group pull-right">
+                    <button type="button" class="btn btn-primary" ng-disabled="isLoading" ng-click="toggleTimer()">
+                      <span class="{{ isLoading && 'fa fa-spinner fa-spin' || 'glyphicon glyphicon-ok'}}"></span> {{ isLoading && 'Wait' || 'Continue' }}
+                    </button>
+                    <button type="button" class="btn btn-primary" ng-disabled="!timerIsRunning" ng-click="clearTimer()">
+                      Clear timer
+                    </button>
+                  </div>
+
+                  
+                  <div class="clearfix"></div>
+                </div>
+              </div>
+
               <label>Name:</label>
               <form class="form-horizontal">
                 <input type="text" ng-model="txtYourName" placeholder="Enter a name here" />
-                <button class="btn" ng-click="sendMessage()">Send</button>
+                <button class="btn" ng-click="sendMessage()">Conti</button>
               </form>
               <hr>
               <h1>{{getYourName()}}</h1>
               
-            </div>
-          </div>
-        </div>
-      </div>
+            </div><!-- /.col-md-12 -->
+          </div><!-- /.row -->
+        </div><!-- /.container-fluid -->
+      </div><!-- /.centered -->
     </div>
+
+    <div class="modal {{instructionsVisible && 'show' || 'hide fade'}}">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+            <h4 class="modal-title">Instructions</h4>
+          </div>
+          <div class="modal-body">
+            <p>One fine body&hellip;</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-default" ng-click="instructionsVisible = false">Close</button>
+          </div>
+        </div><!-- /.modal-content -->
+      </div><!-- /.modal-dialog -->
+    </div><!-- /.modal -->
   </body>
 </html>
