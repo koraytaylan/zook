@@ -4,6 +4,8 @@ import json
 import uuid
 import codecs
 import os
+import sys
+import traceback
 
 
 class MainHandler(tornado.web.RequestHandler):
@@ -31,7 +33,6 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         del self.application.sockets[self.key]
 
     def on_message(self, message):
-        time.sleep(1)
         o = None
         id = None
         message_type = None
@@ -80,25 +81,30 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             m['id'] = id
         self.write_message(json.dumps(m))
 
-    def init(self, message):
+    def parse_key(self, data):
         try:
-            data = {}
+            return uuid.UUID(data)
+        except:
+            return None
+
+    def init(self, message):
+        data = {}
+        try:
             if 'data' in message and message['data'] is not None:
-                key = uuid.UUID(message['data'])
-                if key in self.application.sockets:
+                key = self.parse_key(message['data'])
+                if key is not None and key in self.application.sockets:
                     socket = self.application.sockets[key]
                     if socket is not self:
                         self.subject = socket.subject
                         socket.close()
-                else:
                     del self.application.sockets[self.key]
-                self.key = key
-                self.application.sockets[self.key] = self
-            data['key'] = self.key
+                    self.key = key
+                    self.application.sockets[self.key] = self
+            data['key'] = str(self.key)
             self.is_initialized = True
-            return self.send('initialize', str(self.key), message['id'])
+            return self.send('initialize', data, message['id'])
         except:
-            return self.send('internal_error')
+            return self.send('internal_error', str(traceback.format_exc()))
 
     def get_subject(self, message):
         return self.send('get_subject', self.subject, message['id'])

@@ -56,6 +56,7 @@ app.factory('SocketService', ['$q', '$rootScope', function ($q, $rootScope) {
             var data = message.data;
             localStorage.setItem('key', data.key);
             service.isInitialized = true;
+            return message;
         });
     };
 
