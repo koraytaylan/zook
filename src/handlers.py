@@ -1,3 +1,4 @@
+import zook
 import tornado.websocket
 import time
 import json
@@ -23,7 +24,7 @@ class MainHandler(tornado.web.RequestHandler):
 class SocketHandler(tornado.websocket.WebSocketHandler):
     """docstring for SocketHandler"""
     def open(self):
-        self.session = None
+        self.session = self.find_session()
         self.subject = None
         self.key = uuid.uuid4()
         self.application.sockets[self.key] = self
@@ -31,7 +32,8 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         self.is_experimenter = False
 
     def on_close(self):
-        del self.application.sockets[self.key]
+        if hasattr(self, 'key'):
+            del self.application.sockets[self.key]
 
     def on_message(self, message):
         o = None
@@ -82,6 +84,19 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             m['id'] = id
         self.write_message(json.dumps(m))
 
+    def find_session(self):
+        session = None
+        if len(self.application.sessions) > 0:
+            session = next(
+                (s for s in self.application.sessions.values()
+                    if s.is_started is False),
+                None
+                )
+        if session is None:
+            session = zook.Session()
+            self.application.sessions[session.key] = session
+        return session
+
     def parse_key(self, data):
         try:
             return uuid.UUID(data)
@@ -102,22 +117,51 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                     self.key = key
                     self.application.sockets[self.key] = self
             data['key'] = str(self.key)
+            data['session'] = dict(
+                key=str(self.session.key),
+                is_started=self.session.is_started,
+                is_finished=self.session.is_finished
+                )
             self.is_initialized = True
             return self.send('initialize', data, message['id'])
         except:
             return self.send('internal_error', str(traceback.format_exc()))
 
     def get_subject(self, message):
-        data = self.subject
+        session = self.subject
         if self.is_experimenter:
-            data = self.
-        return self.send('get_subject', self.subject, message['id'])
+            if 'data' not in message or message['data'] is None:
+                return self.send(
+                    'invalid_operation',
+                    'key for the subject to be retrieved' +
+                    ' should be defined in "data"'
+                    )
+            session = next(
+                (s for s in self.session.subjects if s.key == message['data']),
+                None
+                )
+        return self.send('get_subject', session, message['id'])
 
     def set_subject(self, message):
-        if 'name' not in message:
-            return send.message(
-                'invalid_message',
-                'message should contain a "name"'
+        if 'data' not in message or message['data'] is None:
+            return self.send(
+                'invalid_operation',
+                'message should contain a "data"'
                 )
-        if self.subject is None:
-            self.subject
+        data = message['data']
+        subject = None
+        if self.is_experimenter:
+            if 'key' not in data or message['key'] is None:
+                return self.send(
+                    'invalid_operation',
+                    'key for the subject to be modified' +
+                    ' should be defined in "data.key"'
+                    )
+            subject = next(
+                (s for s in self.session.subjects if s.key == data['key']),
+                None
+                )
+        if subject is not None:
+            if 'name' in data:
+                subject.name = data['name']
+        return self.send('set_subject', subject, message['id'])

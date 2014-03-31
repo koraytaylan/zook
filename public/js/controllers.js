@@ -1,7 +1,5 @@
 /*jslint browser: true*/
-/*global angular*/
-var app = angular.module('zook', ['timer']);
-
+/*global angular, app*/
 app.controller('MainCtrl', [ '$scope', 'SocketService', function ($scope, socket) {
     'use strict';
     $scope.isLoading = true;
@@ -75,11 +73,11 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', function ($scope, socket
         return timerTicks;
     };
 
-
-    socket.onInitialize(function (message) {
-        debugger;
-        $scope.subject = message.data;
-        $scope.isLoading = false;
-        $scope.toggleTimer();
+    socket.onInitialize(function () {
+        socket.send('get_subject').then(function (message) {
+            $scope.subject = message.data;
+            $scope.isLoading = false;
+            $scope.toggleTimer();
+        });
     });
 }]);

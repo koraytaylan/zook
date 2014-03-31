@@ -1,17 +1,29 @@
 import tornado.web
 import os
 import handlers
+import uuid
 
 
 class Session(object):
     """docstring for Session"""
     def __init__(self):
         super(Session, self).__init__()
+        self.key = uuid.uuid4()
         self.subjects = {}
         self.phases = {}
         self.groups = {}
         self.current_phase = 0
         self.is_started = False
+        self.is_finished = False
+        self.group_size = 6
+        self.starting_balance = 5
+
+    def start(self):
+        for s in (s for s in self.subjects.values() if s.is_active):
+            s.total_profit = 0
+            s.current_balance = self.starting_balance
+            s.profit = 0
+        self.is_started = True
         self.is_finished = False
 
 
@@ -48,7 +60,17 @@ class Subject(object):
         super(Subject, self).__init__()
         self.session = session
         self.name = name
+        self.is_active = True
         session.subjects[name] = self
+        self.total_profit = 0
+        self.current_balance = session.starting_balance
+        self.profit = 0
+        self.bid_diff_up = 222
+        self.bid_diff_down = 222
+        self.up_covered = -2
+        self.down_covered = -2
+        self.my_bid = -1
+        self.my_ask = -1
 
 
 class Application(tornado.web.Application):
@@ -82,6 +104,4 @@ class Application(tornado.web.Application):
         tornado.web.Application.__init__(self, _handlers, **settings)
         self.sessions = {}
         self.sockets = {}
-
-    def get_session(self):
         
