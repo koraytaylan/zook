@@ -23,6 +23,7 @@ class MainHandler(tornado.web.RequestHandler):
 class SocketHandler(tornado.websocket.WebSocketHandler):
     """docstring for SocketHandler"""
     def open(self):
+        self.session = None
         self.subject = None
         self.key = uuid.uuid4()
         self.application.sockets[self.key] = self
@@ -107,6 +108,9 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             return self.send('internal_error', str(traceback.format_exc()))
 
     def get_subject(self, message):
+        data = self.subject
+        if self.is_experimenter:
+            data = self.
         return self.send('get_subject', self.subject, message['id'])
 
     def set_subject(self, message):

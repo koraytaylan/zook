@@ -82,3 +82,6 @@ class Application(tornado.web.Application):
         tornado.web.Application.__init__(self, _handlers, **settings)
         self.sessions = {}
         self.sockets = {}
+
+    def get_session(self):
+        
