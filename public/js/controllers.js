@@ -11,6 +11,8 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', function ($scope, socket
     $scope.subject = null;
     $scope.answerCountdown = 60;
 
+    $scope.state = 0;
+
     var timerId = null,
         timerTicks = 0,
         timerFinished = true,

@@ -5,32 +5,20 @@
     <title>Zook</title>
     
     <link rel="stylesheet" href="lib/normalize/normalize.css">
-    <link rel="stylesheet" href="lib/bootstrap/css/bootstrap.min.css">
-    <link rel="stylesheet" href="lib/bootstrap/css/bootstrap-theme.min.css">
+    <link rel="stylesheet/less" type="text/css" href="lib/bootstrap/less/bootstrap.less" />
+    <!-- <link rel="stylesheet" href="lib/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="lib/bootstrap/css/bootstrap-theme.min.css"> -->
     <link rel="stylesheet" href="lib/font-awesome/css/font-awesome.min.css">
     <link rel="stylesheet" href="css/main.css">
     
     <script src="lib/jquery/jquery-2.1.0.min.js"></script>
     <script src="lib/bootstrap/js/bootstrap.min.js"></script>
+    <script src="lib/less/less.min.js"></script>
     <script src="lib/angular/angular.min.js"></script>
     
     <script src="js/app.js"></script>
     <script src="js/controllers.js"></script>
     <script src="js/socket.service.js"></script>
-    <script type="text/javascript">
-        (function () {
-var el = document.documentElement;
-  if(el.requestFullscreen) {
-    el.requestFullscreen();
-  } else if(el.mozRequestFullScreen) {
-    el.mozRequestFullScreen();
-  } else if(el.webkitRequestFullscreen) {
-    el.webkitRequestFullscreen();
-  } else if(el.msRequestFullscreen) {
-    el.msRequestFullscreen();
-  }
-})();
-    </script>
   </head>
   <body ng-controller="MainCtrl">
     <div class="block" style="height:100%;">
@@ -49,8 +37,20 @@ var el = document.documentElement;
                   </div>
                   <div class="clearfix"></div>
                 </div>
-                <div class="panel-body">
-                  Panel content
+                <div class="panel-body" ng-switch on="state">
+
+
+                  <div ng-switch-default>
+                    <form role="form">
+                      <div class="form-group">
+                        <label class="control-label" for="txtClientName">Enter a name for this client</label>
+                        <input id="txtClientName" name="txtClientName" type="text" class="form-control" placeholder="Client1">
+                      </div>
+                    </form>
+                    <div class="alert alert-danger" ng-show="clientNameInvalid">lölölölö</div>
+                  </div>
+
+
                   <div class="clearfix"></div>
                 </div>
                 <div class="panel-footer">
@@ -63,24 +63,12 @@ var el = document.documentElement;
                     <button type="button" class="btn btn-primary" ng-disabled="isLoading" ng-click="toggleTimer()">
                       <span class="{{ isLoading && 'fa fa-spinner fa-spin' || 'glyphicon glyphicon-ok'}}"></span> {{ isLoading && 'Wait' || 'Continue' }}
                     </button>
-                    <button type="button" class="btn btn-primary" ng-disabled="!timerIsRunning" ng-click="clearTimer()">
-                      Clear timer
-                    </button>
                   </div>
 
                   
                   <div class="clearfix"></div>
                 </div>
               </div>
-
-              <label>Name:</label>
-              <form class="form-horizontal">
-                <input type="text" ng-model="txtYourName" placeholder="Enter a name here" />
-                <button class="btn" ng-click="sendMessage()">Conti</button>
-              </form>
-              <hr>
-              <h1>{{getYourName()}}</h1>
-              
             </div><!-- /.col-md-12 -->
           </div><!-- /.row -->
         </div><!-- /.container-fluid -->
@@ -91,7 +79,7 @@ var el = document.documentElement;
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+            <button type="button" class="close" ng-click="instructionsVisible = false">&times;</button>
             <h4 class="modal-title">Instructions</h4>
           </div>
           <div class="modal-body">
