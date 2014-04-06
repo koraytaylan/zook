@@ -1,16 +1,27 @@
 from zook import *
 import tornado.ioloop
 import tornado.httpserver
-import tornado.autoreload
+import sys
+import os
 
 
-def main():
-    http_server = tornado.httpserver.HTTPServer(Application())
+def main(argv):
+    public_path = 'app'
+    if len(argv) > 0 and argv[0] == 'dist':
+        public_path = 'dist'
+    public_path = os.path.join(
+        os.path.dirname(
+            os.path.realpath(__file__)
+            ),
+        os.path.pardir,
+        public_path
+        )
+    app = Application(public_path)
+    http_server = tornado.httpserver.HTTPServer(app)
     http_server.listen(8080)
     ioloop = tornado.ioloop.IOLoop.instance()
-    #tornado.autoreload.start(ioloop, 100)
     ioloop.start()
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

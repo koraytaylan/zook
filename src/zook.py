@@ -75,14 +75,8 @@ class Subject(object):
 
 class Application(tornado.web.Application):
     """docstring for Application"""
-    def __init__(self):
-        self.public_path = os.path.join(
-            os.path.dirname(
-                os.path.realpath(__file__)
-                ),
-            os.path.pardir,
-            'public'
-            )
+    def __init__(self, public_path):
+        self.public_path = public_path
         _handlers = [
             (r'/socket', handlers.SocketHandler),
             (r'/', handlers.MainHandler),

@@ -34,3 +34,9 @@ nosetests.xml
 .mr.developer.cfg
 .project
 .pydevproject
+
+# npm bower
+node_modules
+dist
+.tmp
+app/bower_components
