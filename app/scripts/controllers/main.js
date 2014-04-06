@@ -1,7 +1,8 @@
 /*jslint browser: true*/
 /*global angular, app*/
+'use strict';
+
 app.controller('MainCtrl', [ '$scope', 'SocketService', function ($scope, socket) {
-    'use strict';
     $scope.isLoading = true;
     $scope.isInitialized = false;
     $scope.instructionsVisible = false;
@@ -74,6 +75,10 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', function ($scope, socket
 
     $scope.getRemainingTime = function () {
         return timerTicks;
+    };
+
+    $scope.continue = function () {
+        $scope.$broadcast('continue');
     };
 
     socket.onInitialize(function () {

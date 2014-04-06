@@ -8,7 +8,7 @@ class Session(object):
     """docstring for Session"""
     def __init__(self):
         super(Session, self).__init__()
-        self.key = uuid.uuid4()
+        self.key = str(uuid.uuid4())
         self.subjects = {}
         self.phases = {}
         self.groups = {}
@@ -56,12 +56,13 @@ class Group(object):
 
 class Subject(object):
     """docstring for Subject"""
-    def __init__(self, session, name):
+    def __init__(self, session):
         super(Subject, self).__init__()
         self.session = session
-        self.name = name
+        self.key = str(uuid.uuid4())
+        self.name = None
         self.is_active = True
-        session.subjects[name] = self
+        session.subjects[self.key] = self
         self.total_profit = 0
         self.current_balance = session.starting_balance
         self.profit = 0
@@ -71,6 +72,12 @@ class Subject(object):
         self.down_covered = -2
         self.my_bid = -1
         self.my_ask = -1
+
+    def to_json(self):
+        return dict(
+            # key=self.key,
+            name=self.name
+            )
 
 
 class Application(tornado.web.Application):

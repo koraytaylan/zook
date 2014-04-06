@@ -33,13 +33,7 @@
 
 
                   <div ng-switch-default>
-                    <form role="form">
-                      <div class="form-group">
-                        <label class="control-label" for="txtClientName">Enter a name for this client</label>
-                        <input id="txtClientName" name="txtClientName" type="text" class="form-control" placeholder="Client1">
-                      </div>
-                    </form>
-                    <div class="alert alert-danger" ng-show="clientNameInvalid">lölölölö</div>
+                    <subject-initialize></subject-initialize>
                   </div>
 
 
@@ -52,7 +46,7 @@
                     </button>
                   </div>
                   <div class="btn-group pull-right">
-                    <button type="button" class="btn btn-primary" ng-disabled="isLoading" ng-click="toggleTimer()">
+                    <button type="button" class="btn btn-primary" ng-disabled="isLoading" ng-click="continue()">
                       <span class="{{ isLoading && 'fa fa-spinner fa-spin' || 'glyphicon glyphicon-ok'}}"></span> {{ isLoading && 'Wait' || 'Continue' }}
                     </button>
                   </div>
@@ -93,12 +87,14 @@
     <script src="bower_components/angular-cookies/angular-cookies.js"></script>
     <script src="bower_components/angular-sanitize/angular-sanitize.js"></script>
     <script src="bower_components/angular-route/angular-route.js"></script>
+    <script src="bower_components/angular-bootstrap/ui-bootstrap-tpls.js"></script>
     <!-- endbower -->
     <!-- endbuild -->
 
     <!-- build:js({.tmp,app}) scripts/scripts.js -->
     <script src="scripts/app.js"></script>
     <script src="scripts/services/socket.js"></script>
+    <script src="scripts/directives/subject-initialize.js"></script>
     <script src="scripts/controllers/main.js"></script>
     <!-- endbuild -->
     

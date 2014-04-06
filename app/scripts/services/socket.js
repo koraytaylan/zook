@@ -1,7 +1,8 @@
 /*jslint browser: true*/
 /*global angular, app, WebSocket, localStorage*/
+'use strict';
+
 app.factory('SocketService', ['$q', '$rootScope', function ($q, $rootScope) {
-    'use strict';
     var service = {},
         callbacks = {},
         lastId = 0,

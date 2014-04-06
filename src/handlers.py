@@ -1,7 +1,7 @@
 import zook
 import tornado.websocket
 import time
-import json
+import simplejson as json
 import uuid
 import codecs
 import os
@@ -26,7 +26,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
     def open(self):
         self.session = self.find_session()
         self.subject = None
-        self.key = uuid.uuid4()
+        self.key = str(uuid.uuid4())
         self.application.sockets[self.key] = self
         self.is_initialized = False
         self.is_experimenter = False
@@ -72,7 +72,19 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             return self.init(o)
         elif message_type == 'get_subject':
             return self.get_subject(o)
+        elif message_type == 'set_subject':
+            return self.set_subject(o)
         return self.send('invalid_operation', 'unknown message type', id)
+
+    def serialize(self, message):
+        o = None
+        if message is not None and hasattr(message, 'data'):
+            data = message['data']
+            if hasattr(data, 'to_json'):
+                o = message.to_json()
+            else:
+                o = json.dumps(message)
+        return o
 
     def send(self, message_type='reply', message=None, id=None):
         m = dict(
@@ -82,7 +94,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         )
         if id is not None:
             m['id'] = id
-        self.write_message(json.dumps(m))
+        self.write_message(self.serialize(m))
 
     def find_session(self):
         session = None
@@ -99,7 +111,8 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
 
     def parse_key(self, data):
         try:
-            return uuid.UUID(data)
+            key = uuid.UUID(data)
+            return str(key)
         except:
             return None
 
@@ -108,27 +121,32 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         try:
             if 'data' in message and message['data'] is not None:
                 key = self.parse_key(message['data'])
-                if key is not None and key in self.application.sockets:
-                    socket = self.application.sockets[key]
-                    if socket is not self:
-                        self.subject = socket.subject
-                        socket.close()
-                    del self.application.sockets[self.key]
-                    self.key = key
-                    self.application.sockets[self.key] = self
-            data['key'] = str(self.key)
+                if key is not None:
+                    if key in self.application.sockets:
+                        socket = self.application.sockets[key]
+                        if socket is not self:
+                            self.subject = socket.subject
+                            socket.close()
+                    else:
+                        del self.application.sockets[self.key]
+                        self.key = key
+                        self.application.sockets[self.key] = self
+            data['key'] = self.key
             data['session'] = dict(
                 key=str(self.session.key),
                 is_started=self.session.is_started,
                 is_finished=self.session.is_finished
                 )
+            if self.subject is None:
+                self.subject = zook.Subject(self.session)
+            data['subject'] = self.subject
             self.is_initialized = True
             return self.send('initialize', data, message['id'])
         except:
             return self.send('internal_error', str(traceback.format_exc()))
 
     def get_subject(self, message):
-        session = self.subject
+        subject = self.subject
         if self.is_experimenter:
             if 'data' not in message or message['data'] is None:
                 return self.send(
@@ -136,11 +154,11 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                     'key for the subject to be retrieved' +
                     ' should be defined in "data"'
                     )
-            session = next(
+            subject = next(
                 (s for s in self.session.subjects if s.key == message['data']),
                 None
                 )
-        return self.send('get_subject', session, message['id'])
+        return self.send('get_subject', subject, message['id'])
 
     def set_subject(self, message):
         if 'data' not in message or message['data'] is None:
@@ -161,6 +179,8 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                 (s for s in self.session.subjects if s.key == data['key']),
                 None
                 )
+        else:
+            subject = self.subject
         if subject is not None:
             if 'name' in data:
                 subject.name = data['name']
