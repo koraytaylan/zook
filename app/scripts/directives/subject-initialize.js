@@ -17,6 +17,8 @@ app.directive('subjectInitialize', [ 'SocketService', function (socket) {
                     if (message.type === 'invalid_operation') {
                         $scope.errorMessage = message.data;
                         $scope.showError = true;
+                    } else {
+                        $scope.$emit('wait');
                     }
                 });
             });

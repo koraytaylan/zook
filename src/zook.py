@@ -56,10 +56,13 @@ class Group(object):
 
 class Subject(object):
     """docstring for Subject"""
-    def __init__(self, session):
+    def __init__(self, session, key=None):
         super(Subject, self).__init__()
         self.session = session
-        self.key = str(uuid.uuid4())
+        if key is None:
+            key = str(uuid.uuid4())
+        self.key = key
+        self.session.subjects[self.key] = self
         self.name = None
         self.is_active = True
         session.subjects[self.key] = self
@@ -73,9 +76,9 @@ class Subject(object):
         self.my_bid = -1
         self.my_ask = -1
 
-    def to_json(self):
+    def to_dict(self):
         return dict(
-            # key=self.key,
+            key=self.key,
             name=self.name
             )
 

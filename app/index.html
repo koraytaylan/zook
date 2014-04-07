@@ -2,7 +2,7 @@
 <html ng-app="zook">
   <head>
     <meta charset="utf-8">
-    <title>Zook</title>
+    <title>_</title>
     <!-- build:css styles/vendor.css -->
     <!-- bower:css -->
     <link rel="stylesheet" href="bower_components/bootstrap/dist/css/bootstrap.css" />
@@ -31,11 +31,12 @@
                 </div>
                 <div class="panel-body" ng-switch on="state">
 
-
-                  <div ng-switch-default>
+                  <div ng-switch-when="-1">
+                    <wait></wait>
+                  </div>
+                  <div ng-switch-when="0">
                     <subject-initialize></subject-initialize>
                   </div>
-
 
                   <div class="clearfix"></div>
                 </div>
@@ -46,8 +47,8 @@
                     </button>
                   </div>
                   <div class="btn-group pull-right">
-                    <button type="button" class="btn btn-primary" ng-disabled="isLoading" ng-click="continue()">
-                      <span class="{{ isLoading && 'fa fa-spinner fa-spin' || 'glyphicon glyphicon-ok'}}"></span> {{ isLoading && 'Wait' || 'Continue' }}
+                    <button type="button" class="btn btn-primary" ng-disabled="isWaiting" ng-click="continue()">
+                      <span class="{{ isWaiting && 'glyphicon glyphicon-refresh' || 'glyphicon glyphicon-ok'}}"></span> {{ isWaiting && 'Wait' || 'Continue' }}
                     </button>
                   </div>
 
@@ -94,6 +95,7 @@
     <!-- build:js({.tmp,app}) scripts/scripts.js -->
     <script src="scripts/app.js"></script>
     <script src="scripts/services/socket.js"></script>
+    <script src="scripts/directives/wait.js"></script>
     <script src="scripts/directives/subject-initialize.js"></script>
     <script src="scripts/controllers/main.js"></script>
     <!-- endbuild -->

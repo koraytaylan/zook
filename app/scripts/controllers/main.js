@@ -3,7 +3,7 @@
 'use strict';
 
 app.controller('MainCtrl', [ '$scope', 'SocketService', function ($scope, socket) {
-    $scope.isLoading = true;
+    $scope.isWaiting = true;
     $scope.isInitialized = false;
     $scope.instructionsVisible = false;
     $scope.timerIsRunning = false;
@@ -12,7 +12,7 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', function ($scope, socket
     $scope.subject = null;
     $scope.answerCountdown = 60;
 
-    $scope.state = 0;
+    $scope.state = -1;
     $scope.clientNameInvalid = false;
 
     var timerId = null,
@@ -78,14 +78,29 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', function ($scope, socket
     };
 
     $scope.continue = function () {
+        $scope.isWaiting = true;
         $scope.$broadcast('continue');
     };
 
-    socket.onInitialize(function () {
+    $scope.$on('wait', function () {
+        console.log('wait received');
+        $scope.state = -1;
+        $scope.isWaiting = true;
+    });
+
+    socket.onInitialize(function (message) {
+        var data = message.data;
+        $scope.clientKey = data.key;
+        $scope.session = data.session;
+
         socket.send('get_subject').then(function (message) {
             $scope.subject = message.data;
-            $scope.isLoading = false;
-            $scope.toggleTimer();
+            if ($scope.subject !== null) {
+                $scope.state = -1;
+            } else {
+                $scope.state = 0;
+                $scope.isWaiting = false;
+            }
         });
     });
 }]);
