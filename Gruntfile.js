@@ -62,7 +62,7 @@ module.exports = function (grunt) {
 
         bowerInstall: {
             app: {
-                src: ['app/index.html'],
+                src: ['app/client.html', 'app/admin.html'],
                 ignorePath: 'app/'
             }
         },
@@ -81,7 +81,7 @@ module.exports = function (grunt) {
         },
 
         useminPrepare: {
-            html: 'app/index.html',
+            html: ['app/client.html', 'app/admin.html'],
             options: {
                 dest: 'dist',
                 flow: {
@@ -238,6 +238,8 @@ module.exports = function (grunt) {
         'uglify',
         'rev',
         'usemin',
-        'htmlmin'
+        'htmlmin',
+        'bgShell:server_dist',
+        'watch'
     ]);
 };

@@ -10,13 +10,19 @@ import traceback
 import logging
 
 
-class MainHandler(tornado.web.RequestHandler):
-    """docstring for MainHandler"""
+class ClientHandler(tornado.web.RequestHandler):
+    """docstring for ClientHandler"""
     def get(self):
-        key = self.get_secure_cookie('key')
-        if key is None:
-            self.set_secure_cookie('key', str(uuid.uuid4()))
-        path = os.path.join(self.application.public_path, 'index.html')
+        path = os.path.join(self.application.public_path, 'client.html')
+        with codecs.open(path, 'r', 'utf-8') as f:
+            read_data = f.read()
+        self.write(read_data)
+
+
+class ServerHandler(tornado.web.RequestHandler):
+    """docstring for ServerHandler"""
+    def get(self):
+        path = os.path.join(self.application.public_path, 'server.html')
         with codecs.open(path, 'r', 'utf-8') as f:
             read_data = f.read()
         self.write(read_data)

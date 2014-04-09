@@ -88,8 +88,11 @@ class Application(tornado.web.Application):
     def __init__(self, public_path):
         self.public_path = public_path
         _handlers = [
+            (r'/client', handlers.ClientHandler),
+            (r'/server', handlers.ServerHandler),
             (r'/socket', handlers.SocketHandler),
-            (r'/', handlers.MainHandler),
+            # (r'/', handlers.MainHandler),
+            (r'/', tornado.web.RedirectHandler, dict(url="/client")),
             (
                 r'/(.*)',
                 tornado.web.StaticFileHandler,
@@ -97,12 +100,8 @@ class Application(tornado.web.Application):
             )
         ]
         settings = dict(
-            template_path=self.public_path,
-            static_path=self.public_path,
-            # static_url_prefix = "/",
             xsrf_cookies=True,
             cookie_secret="4s0$3yt1tpr3s",
-            # login_url="/auth/login",
             debug=True
         )
         tornado.web.Application.__init__(self, _handlers, **settings)
