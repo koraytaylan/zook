@@ -145,6 +145,10 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         except:
             return self.send('internal_error', str(traceback.format_exc()))
 
+    def find_subject(self, key):
+        ss = self.session.subjects.values()
+        return next((s for s in ss if s.key == key or s.name == key), None)
+
     def get_subject(self, message):
         subject = None
         key = None
@@ -158,10 +162,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             key = message['data']
         else:
             key = self.key
-        subject = next(
-            (s for s in self.session.subjects.values() if s.key == key),
-            None
-            )
+        subject = self.find_subject(key)
         o = None
         if subject is not None:
             o = subject.to_dict()
@@ -186,12 +187,29 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             key = data['key']
         else:
             key = self.key
-        subject = next(
-            (s for s in self.session.subjects if s.key == data['key']),
-            None
-            )
+        subject = self.find_subject(key)
         if subject is None:
             subject = zook.Subject(self.session, key)
         if 'name' in data:
-            subject.name = data['name']
+            name = data['name']
+            if not name or not name.strip():
+                return self.send(
+                    'invalid_operation',
+                    'Client name can not be empty'
+                    )
+            s = self.find_subject(name)
+            if s is not None:
+                return self.send(
+                    'invalid_operation',
+                    'There already is another' +
+                    ' client named with "{0}"'.format(name),
+                    message['id']
+                    )
+            subject.name = name
+        elif not subject.name:
+            return self.send(
+                'invalid_operation',
+                'Client name can not be empty',
+                message['id']
+                )
         return self.send('set_subject', subject.to_dict(), message['id'])

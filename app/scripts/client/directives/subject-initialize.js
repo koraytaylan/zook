@@ -11,14 +11,17 @@ app.directive('subjectInitialize', [ 'SocketService', function (socket) {
         controller: function ($scope) {
 
             $scope.$on('continue', function () {
+                console.log($scope.txtClientName);
+                var name = $scope.txtClientName || 'Client1';
                 socket.send('set_subject', {
-                    name: $scope.txtClientName
+                    name: name
                 }).then(function (message) {
                     if (message.type === 'invalid_operation') {
                         $scope.errorMessage = message.data;
                         $scope.showError = true;
+                        $scope.$emit('state-initial');
                     } else {
-                        $scope.$emit('wait');
+                        $scope.$emit('state-waiting');
                     }
                 });
             });

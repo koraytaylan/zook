@@ -82,10 +82,14 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', function ($scope, socket
         $scope.$broadcast('continue');
     };
 
-    $scope.$on('wait', function () {
-        console.log('wait received');
+    $scope.$on('state-waiting', function () {
         $scope.state = -1;
         $scope.isWaiting = true;
+    });
+
+    $scope.$on('state-initial', function () {
+        $scope.state = 0;
+        $scope.isWaiting = false;
     });
 
     socket.onInitialize(function (message) {
