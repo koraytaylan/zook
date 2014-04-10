@@ -2,6 +2,7 @@
 <html ng-app="zook">
   <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <title>Zook</title>
     <!-- build:css styles/vendor.css -->
     <!-- bower:css -->
@@ -63,6 +64,8 @@ Footer
     
 
 </div>
+    
+    <login></login>
 
 
     <!-- build:js scripts/vendor.js -->
@@ -79,9 +82,12 @@ Footer
 
     <!-- build:js({.tmp,app}) scripts/scripts.js -->
     <script src="scripts/server/app.js"></script>
-    <script src="scripts/server/directives/navbar.js"></script>
     <script src="scripts/services/socket.js"></script>
-    <!-- <script src="scripts/server/controllers/main.js"></script> -->
+    <script src="scripts/server/controllers/main.js"></script>
+    <script src="scripts/server/controllers/clients.js"></script>
+    <script src="scripts/server/routes.js"></script>
+    <script src="scripts/server/directives/navbar.js"></script>
+    <script src="scripts/server/directives/login.js"></script>
     <!-- endbuild -->
     
   </body>

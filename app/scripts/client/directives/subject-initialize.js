@@ -7,7 +7,7 @@ app.directive('subjectInitialize', [ 'SocketService', function (socket) {
         restrict: 'E',
         //transclude: true,
         scope: {},
-        templateUrl: 'partials/subject-initialize.html',
+        templateUrl: 'partials/client/subject-initialize.html',
         controller: function ($scope) {
 
             $scope.$on('continue', function () {

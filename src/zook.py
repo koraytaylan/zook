@@ -91,7 +91,6 @@ class Application(tornado.web.Application):
             (r'/client', handlers.ClientHandler),
             (r'/server', handlers.ServerHandler),
             (r'/socket', handlers.SocketHandler),
-            # (r'/', handlers.MainHandler),
             (r'/', tornado.web.RedirectHandler, dict(url="/client")),
             (
                 r'/(.*)',

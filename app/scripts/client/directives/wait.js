@@ -7,6 +7,6 @@ app.directive('wait', [ function () {
         restrict: 'E',
         transclude: true,
         scope: {},
-        templateUrl: 'partials/wait.html'
+        templateUrl: 'partials/client/wait.html'
     };
 }]);

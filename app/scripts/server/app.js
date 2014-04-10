@@ -3,19 +3,7 @@
 'use strict';
 
 var app = angular.module('zook', ['ngRoute', 'appServices']);
-app.config(['$routeProvider', function ($routeProvider) {
-    $routeProvider.
-        when('/home', {templateUrl: 'home.html',   controller: HomeCtrl}).
-        when('/list', {templateUrl: 'list.html',   controller: ListCtrl}).
-        when('/detail/:itemId', {templateUrl: 'detail.html',   controller: DetailCtrl}).
-        when('/settings', {templateUrl: 'settings.html',   controller: SettingsCtrl}).
-        otherwise({redirectTo: '/home'});
-}]);
 
-function MainCtrl($scope, Page) {
-    console.log(Page);
-    $scope.page = Page;
-}
 
 function HomeCtrl($scope, Page) {
     Page.setTitle("Welcome");

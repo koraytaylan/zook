@@ -80,6 +80,8 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             return self.get_subject(o)
         elif message_type == 'set_subject':
             return self.set_subject(o)
+        elif message_type == 'get_subjects':
+            return self.get_subjects(o)
         return self.send('invalid_operation', 'unknown message type', id)
 
     def serialize(self, message):
@@ -167,6 +169,17 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         if subject is not None:
             o = subject.to_dict()
         return self.send('get_subject', o, message['id'])
+
+    def get_subjects(self, message):
+        if not self.is_experimenter:
+            return self.send(
+                'invalid_operation',
+                'access denied'
+                )
+        ss = []
+        for s in self.subjects.values():
+            ss.append(s.to_dict())
+        return self.send('get_subjects', ss, message['id'])
 
     def set_subject(self, message):
         if 'data' not in message or message['data'] is None:
