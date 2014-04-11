@@ -12,4 +12,12 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', function ($scope, socket
         $scope.key = data.key;
         $scope.session = data.session;
     });
+
+    $scope.authorize = function () {
+        socket
+            .send('authorize', {login: $scope.txtLogin, password: $scope.txtPassword})
+            .then(function (message) {
+                
+            });
+    };
 }]);
