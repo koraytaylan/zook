@@ -2,7 +2,7 @@
 /*global angular, app, WebSocket, localStorage*/
 'use strict';
 
-app.factory('SocketService', ['$q', '$rootScope', function ($q, $rootScope) {
+app.factory('SocketService', ['$q', '$rootScope', 'LogService', function ($q, $rootScope, log) {
     var service = {},
         callbacks = {},
         lastId = 0,
@@ -45,9 +45,10 @@ app.factory('SocketService', ['$q', '$rootScope', function ($q, $rootScope) {
             };
         callbacks[request.id] = {
             timestamp: request.timestamp,
-            defer: defer
+            defer: defer,
+            type: type
         };
-        console.log('Socket: sending message', request);
+        log.info('Socket: sending message', request);
         ws.send(JSON.stringify(request));
         return defer.promise;
     };
@@ -61,12 +62,12 @@ app.factory('SocketService', ['$q', '$rootScope', function ($q, $rootScope) {
         });
     };
 
-    service.echo = function (message) {
-        return service.send('echo', message);
+    service.close = function () {
+        ws.close();
     };
 
     ws.onopen = function () {
-        console.log("Socket: opened!");
+        log.info("Socket: opened!");
         notify(onOpenCallbacks);
         service.initialize().then(function (message) {
             notify(onInitializeCallbacks, message);
@@ -74,31 +75,39 @@ app.factory('SocketService', ['$q', '$rootScope', function ($q, $rootScope) {
     };
 
     ws.onclose = function () {
-        console.log("Socket: closed!");
+        log.info("Socket: closed!");
         notify(onCloseCallbacks);
     };
 
     ws.onmessage = function (message) {
-        var cb = null;
+        var cb = null,
+            logMessage = null;
         try {
             message = JSON.parse(message.data);
         } catch (ex) {
-            console.log('Socket: invalid message received', message);
+            log.error('Socket: invalid message received', message);
         }
         if (message !== null) {
             if (callbacks.hasOwnProperty(message.id)) {
                 cb = callbacks[message.id];
                 message.isReply = true;
                 message.roundtrip = new Date().getTime() - cb.timestamp;
-                console.log('Socket: message reply received ' + message.roundtrip + 'ms', message);
+                logMessage = 'Socket: message reply received ' + message.roundtrip + 'ms';
+                if (cb.type === message.type) {
+                    log.success(logMessage, message);
+                } else {
+                    log.error(logMessage, message);
+                }
                 $rootScope.$apply(cb.defer.resolve(message));
                 delete callbacks[message.id];
             } else {
                 message.isReply = false;
-                console.log('Socket: message received', message);
+                log.info('Socket: message received', message);
             }
         }
     };
+
+    window.socket = service;
 
     return service;
 }]);

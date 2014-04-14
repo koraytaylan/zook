@@ -17,7 +17,10 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', function ($scope, socket
         socket
             .send('authorize', {login: $scope.txtLogin, password: $scope.txtPassword})
             .then(function (message) {
-                
+                if (message.type !== 'invalid_operation') {
+                    $scope.isAuthorized = true;
+                    $scope.$broadcast('authorize');
+                }
             });
     };
 }]);

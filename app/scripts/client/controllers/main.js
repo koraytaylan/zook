@@ -2,7 +2,7 @@
 /*global angular, app*/
 'use strict';
 
-app.controller('MainCtrl', [ '$scope', 'SocketService', function ($scope, socket) {
+app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', function ($scope, socket, log) {
     $scope.isWaiting = true;
     $scope.isInitialized = false;
     $scope.instructionsVisible = false;
@@ -82,10 +82,16 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', function ($scope, socket
         $scope.$broadcast('continue');
     };
 
-    $scope.$on('wait', function () {
-        console.log('wait received');
+    $scope.$on('state-waiting', function () {
+        log.info('Event: MainController <- state-waiting');
         $scope.state = -1;
         $scope.isWaiting = true;
+    });
+
+    $scope.$on('state-initial', function () {
+        log.info('Event: MainController <- state-initial');
+        $scope.state = 0;
+        $scope.isWaiting = false;
     });
 
     socket.onInitialize(function (message) {

@@ -28,6 +28,18 @@ class ServerHandler(tornado.web.RequestHandler):
         self.write(read_data)
 
 
+class InvalidOperationException(Exception):
+    pass
+
+
+class UnauthorizedOperationException(Exception):
+    pass
+
+
+class InvalidMessageException(Exception):
+    pass
+
+
 class SocketHandler(tornado.websocket.WebSocketHandler):
     """docstring for SocketHandler"""
     def open(self):
@@ -45,48 +57,45 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         o = None
         id = None
         message_type = None
+        reply = None
         try:
-            o = json.loads(message)
-        except:
-            return self.send(
-                'invalid_message',
-                'message should be in json format'
-                )
-        if 'id' not in o:
-            return self.send(
-                'invalid_message',
-                'message should contain an "id"',
-                id
-                )
-        else:
+            try:
+                o = json.loads(message)
+            except:
+                raise InvalidMessageException(
+                    'Message should be in json format')
+            if 'id' not in o:
+                raise InvalidMessageException(
+                    'Message should contain "id"')
             id = o['id']
-        if 'type' not in o:
-            return self.send(
-                'invalid_message',
-                'message should contain a "type"',
-                id
-                )
-        else:
+            if 'type' not in o:
+                raise InvalidMessageException(
+                    'Message should contain "type"')
             message_type = o['type']
-        if self.is_initialized is False and message_type != 'initialize':
-            return self.send(
-                'invalid_operation',
-                'socket should be initialized first before sending messages',
-                id
-                )
-        elif message_type == 'initialize':
-            return self.init(o)
-        elif message_type == 'get_subject':
-            return self.get_subject(o)
-        elif message_type == 'set_subject':
-            return self.set_subject(o)
-        elif message_type == 'get_subjects':
-            return self.get_subjects(o)
-        return self.send('invalid_operation', 'unknown message type', id)
-
-    def serialize(self, message):
-        o = json.dumps(message)
-        return o
+            if self.is_initialized is False and message_type != 'initialize':
+                raise InvalidOperationException(
+                    'socket should be initialized first')
+            elif message_type == 'initialize':
+                reply = self.init(o)
+            elif message_type == 'get_subject':
+                reply = self.get_subject(o)
+            elif message_type == 'set_subject':
+                reply = self.set_subject(o)
+            elif message_type == 'get_subjects':
+                reply = self.get_subjects(o)
+            elif message_type == 'authorize':
+                reply = self.authorize(o)
+            else:
+                raise InvalidOperationException('Unknown message type')
+            return self.send(message_type, reply, id)
+        except InvalidMessageException as e:
+            return self.send('invalid_message', str(e), id)
+        except InvalidOperationException as e:
+            return self.send('invalid_operation', str(e), id)
+        except UnauthorizedOperationException as e:
+            return self.send('unauthorized_operation', str(e), id)
+        except Exception as e:
+            return self.send('internal_error', str(e), id)
 
     def send(self, message_type='reply', message=None, id=None):
         m = dict(
@@ -96,7 +105,22 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         )
         if id is not None:
             m['id'] = id
-        self.write_message(self.serialize(m))
+        self.write_message(json.dumps(m))
+
+    def check_data(self, message, keys=[]):
+        if 'data' not in message or message['data'] is None:
+            raise SocketException('Message should contain "data"')
+        if len(keys) > 0:
+            data = message['data']
+            for key in keys:
+                if key not in data or not data[key] or not data[key].strip():
+                    raise SocketException(
+                        'Message "data" should contain a "{0}"'.format(key)
+                        )
+
+    def check_experimenter(self):
+        if not self.is_experimenter:
+            raise SocketException('Access denied')
 
     def find_session(self):
         session = None
@@ -121,108 +145,97 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
     def init(self, message):
         data = {}
         subject = None
-        try:
-            if 'data' in message and message['data'] is not None:
-                key = self.parse_key(message['data'])
-                if key is not None:
-                    ss = self.session.subjects
-                    subject = next(
-                        (s for s in ss.values() if s.key == key),
-                        None
-                        )
-                    ss = self.application.sockets
-                    for s in (s for s in ss.values() if s.key == key):
-                        s.close()
-                    del self.application.sockets[self.key]
-                    self.key = key
-                    self.application.sockets[self.key] = self
-            data['key'] = self.key
-            data['session'] = dict(
-                key=str(self.session.key),
-                is_started=self.session.is_started,
-                is_finished=self.session.is_finished
-                )
-            self.is_initialized = True
-            return self.send('initialize', data, message['id'])
-        except:
-            return self.send('internal_error', str(traceback.format_exc()))
-
-    def find_subject(self, key):
-        ss = self.session.subjects.values()
-        return next((s for s in ss if s.key == key or s.name == key), None)
+        if 'data' in message and message['data'] is not None:
+            key = self.parse_key(message['data'])
+            if key is not None:
+                subject = self.session.find_subject(key)
+                socket = self.application.find_socket(key)
+                if socket is not None:
+                    socket.close()
+                del self.application.sockets[self.key]
+                self.key = key
+                self.application.sockets[self.key] = self
+        data['key'] = self.key
+        data['session'] = dict(
+            key=str(self.session.key),
+            is_started=self.session.is_started,
+            is_finished=self.session.is_finished
+            )
+        self.is_initialized = True
+        return data
 
     def get_subject(self, message):
         subject = None
         key = None
         if self.is_experimenter:
-            if 'data' not in message or message['data'] is None:
-                return self.send(
-                    'invalid_operation',
-                    'key for the subject to be retrieved' +
-                    ' should be defined in "data"'
-                    )
+            self.check_data(message)
             key = message['data']
         else:
             key = self.key
-        subject = self.find_subject(key)
+        subject = self.session.find_subject(key)
         o = None
         if subject is not None:
             o = subject.to_dict()
-        return self.send('get_subject', o, message['id'])
+        return o
 
     def get_subjects(self, message):
-        if not self.is_experimenter:
-            return self.send(
-                'invalid_operation',
-                'access denied'
-                )
+        self.check_experimenter()
         ss = []
-        for s in self.subjects.values():
+        for s in self.session.subjects.values():
             ss.append(s.to_dict())
-        return self.send('get_subjects', ss, message['id'])
+        return ss
 
     def set_subject(self, message):
-        if 'data' not in message or message['data'] is None:
-            return self.send(
-                'invalid_operation',
-                'message should contain a "data"'
-                )
-        data = message['data']
         subject = None
         key = None
         if self.is_experimenter:
-            if 'key' not in data or message['key'] is None:
-                return self.send(
-                    'invalid_operation',
-                    'key for the subject to be modified' +
-                    ' should be defined in "data.key"'
-                    )
+            self.check_data(message, ['key'])
             key = data['key']
         else:
+            self.check_data(message)
             key = self.key
-        subject = self.find_subject(key)
+        data = message['data']
+        subject = self.session.find_subject(key)
         if subject is None:
             subject = zook.Subject(self.session, key)
         if 'name' in data:
             name = data['name']
             if not name or not name.strip():
-                return self.send(
-                    'invalid_operation',
-                    'Client name can not be empty'
-                    )
-            s = self.find_subject(name)
+                del self.session.subjects[key]
+                raise InvalidOperationException('Client name can not be empty')
+            s = self.session.find_subject(name)
             if s is not None:
-                return self.send(
-                    'invalid_operation',
-                    'There already is another' +
-                    ' client named with "{0}"'.format(name),
-                    message['id']
-                    )
+                del self.session.subjects[key]
+                raise InvalidOperationException('Client name already in use')
             subject.name = name
         elif not subject.name:
-            return self.send(
-                'invalid_operation',
-                'Client name can not be empty',
-                message['id']
-                )
-        return self.send('set_subject', subject.to_dict(), message['id'])
+            del self.session.subjects[key]
+            raise InvalidOperationException('Client name can not be empty')
+        return subject.to_dict()
+
+    def delete_subject(self, message):
+        self.check_data(message)
+        self.check_experimenter(message)
+        key = message['data']
+        socket = self.application.find_socket(key)
+        subject = self.session.find_subject(key)
+        if socket is not None:
+            socket.close()
+        if subject is not None:
+            del self.session.subjects[key]
+            return True
+        else:
+            return False
+
+    def authorize(self, message):
+        if self.is_experimenter:
+            raise InvalidOperationException('You already are authorized')
+        self.check_data(message, ['login', 'password'])
+        data = message['data']
+        login = data['login']
+        password = data['password']
+        if login == 'exp' and password == '1':
+            self.is_experimenter = True
+            return True
+        else:
+            raise UnauthorizedOperationException()

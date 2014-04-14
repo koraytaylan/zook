@@ -11,7 +11,6 @@ app.directive('subjectInitialize', [ 'SocketService', function (socket) {
         controller: function ($scope) {
 
             $scope.$on('continue', function () {
-                console.log($scope.txtClientName);
                 var name = $scope.txtClientName || 'Client1';
                 socket.send('set_subject', {
                     name: name

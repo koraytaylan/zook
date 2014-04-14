@@ -17,56 +17,9 @@
 
     <navbar></navbar>
 
-    <div>
-
-<h1>{{page.title()}}</h1>
-
-<p> <a href="#/home">Home</a> |
-    <a href="#/list">List</a> |
-    <a href="#/settings">Settings</a>
-</p>
-
-<hr>
-    <ng-view>Loading...</ng-view>
-<hr>
-Footer
-
-<!-- Inline Templates (Partials) -->
-    
-<script type="text/ng-template" id="home.html">
-    <!-- Home -->
-    <ul>
-        <li><a href="#/list">Show Items</a></li>
-        <li><a href="#/settings">Settings</a></li>
-    </ul>
-</script>
-
-<script type="text/ng-template" id="list.html">
-    <!-- List -->
-    <p>Choose an Item</p>
-    <ul>
-        <li ng-repeat="item in items"><a href="#/detail/{{item.id}}">{{item.title}}</a></li>
-    </ul>
-</script>
-
-<script type="text/ng-template" id="detail.html">
-    <!-- Detail -->
-    <h2>{{item.title}}</h2>
-    <p>{{item.detail}}</p>
-    <hr>
-    <p>{{item.id}}</p>
-</script>
-
-<script type="text/ng-template" id="settings.html">
-    <!-- Settings -->
-    <p>Settings go here ...</p>
-</script>
-    
-
-</div>
+    <ng-view ng-show="isAuthorized">Loading...</ng-view>
     
     <login></login>
-
 
     <!-- build:js scripts/vendor.js -->
     <!-- bower:js -->
@@ -82,10 +35,10 @@ Footer
 
     <!-- build:js({.tmp,app}) scripts/scripts.js -->
     <script src="scripts/server/app.js"></script>
+    <script src="scripts/services/log.js"></script>
     <script src="scripts/services/socket.js"></script>
     <script src="scripts/server/controllers/main.js"></script>
     <script src="scripts/server/controllers/clients.js"></script>
-    <script src="scripts/server/routes.js"></script>
     <script src="scripts/server/directives/navbar.js"></script>
     <script src="scripts/server/directives/login.js"></script>
     <!-- endbuild -->

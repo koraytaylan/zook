@@ -18,6 +18,10 @@ class Session(object):
         self.group_size = 6
         self.starting_balance = 5
 
+    def find_subject(self, key):
+        ss = self.subjects.values()
+        return next((s for s in ss if s.key == key or s.name == key), None)
+
     def start(self):
         for s in (s for s in self.subjects.values() if s.is_active):
             s.total_profit = 0
@@ -106,4 +110,8 @@ class Application(tornado.web.Application):
         tornado.web.Application.__init__(self, _handlers, **settings)
         self.sessions = {}
         self.sockets = {}
+
+    def find_socket(self, key):
+        ss = self.sockets.values()
+        return next((s for s in ss if s.key == key), None)
         

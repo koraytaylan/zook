@@ -4,7 +4,12 @@
   </thead>
   <tbody>
     <tr ng-repeat="s in subjects">
-      <td>{{name}}</td>
+      <td>{{s.name}}</td>
+      <td>
+      	<button type="button" class="btn btn-danger btn-xs" ng-click="remove(s.key)">
+          <span class="glyphicon glyphicon-remove"></span>
+        </button>
+      </td>
     </tr>
   </tbody>
 </table>
