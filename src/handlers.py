@@ -54,7 +54,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             del self.application.sockets[self.key]
             s = self.application.get_subject(self.key)
             if s is not None:
-                s.status = 'dropped'
+                s.set_state('dropped')
                 self.notify('set_subject', s.to_dict())
 
     def on_message(self, message):
@@ -168,6 +168,10 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                 exp = self.application.get_experimenter(self.key)
                 if exp is not None:
                     self.is_experimenter = True
+                else:
+                    sub = self.application.get_subject(self.key)
+                    if sub is not None:
+                        
         data['key'] = self.key
         data['session'] = dict(
             key=str(self.session.key),
@@ -243,6 +247,20 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             socket.close()
         if subject is not None:
             del self.session.subjects[key]
+            return True
+        else:
+            return False
+
+    def suspend_subject(self, message):
+        self.check_data(message)
+        self.check_experimenter(message)
+        key = message['data']
+        socket = self.application.get_socket(key)
+        subject = self.application.get_subject(key)
+        if socket is not None:
+            socket.close()
+        if subject is not None:
+            subject.set_state('suspended')
             return True
         else:
             return False

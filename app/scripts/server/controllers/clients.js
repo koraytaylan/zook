@@ -32,27 +32,14 @@ app.controller('ClientsCtrl', [ '$scope', 'SocketService', function ($scope, soc
         });
     };
 
-    $scope.remove = function (key) {
+    $scope.suspend = function (key) {
         $scope.isLoading = true;
-        socket.send('delete_subject', key).then(function (message) {
-            var i = 0,
-                s = null,
-                ss = null;
+        socket.send('suspend_subject', key).then(function (message) {
             $scope.isLoading = false;
-            if (message.type === 'invalid_operation') {
+            if (message.isError) {
                 $scope.setError(message.data);
             } else {
-                for (i = 0; i < $scope.subjects.length; i += 1) {
-                    ss = $scope.subjects[i];
-                    if (ss.key === key) {
-                        s = ss;
-                        break;
-                    }
-                }
-                if (s !== null) {
-                    i = $scope.subjects.indexOf(s);
-                    $scope.subjects.splice(i, 1);
-                }
+                $scope.getSubjects();
             }
         });
     };

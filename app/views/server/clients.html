@@ -1,18 +1,14 @@
-<pre>Sorting predicate = {{predicate}}; reverse = {{reverse}}</pre>
-
 <table class="table table-hover table-striped">
   <thead>
-    <th ng-click="predicate = 'key'; reverse=!reverse">Key</th>
-    <th><a ng-click="predicate = 'name'; reverse=!reverse">Name</span></th>
-    <th>Status</th>
+    <th><a ng-click="predicate = 'name'; reverse=!reverse">Name</a></th>
+    <th><a ng-click="predicate = 'name'; reverse=!reverse">State</a></th>
     <th></th>
   </thead>
   <tbody>
     <tr ng-repeat="s in subjects | orderBy:predicate:reverse track by s.key">
-      <td>{{s.key}}</td>
       <td>{{s.name}}</td>
       <td>
-        <span class="label" ng-class="{'label-warning': s.status == 'waiting', 'label-success': s.status == 'active', 'label-default': s.status == 'passive', 'label-danger': s.status == 'dropped'}">{{s.status}}</span>
+        <span class="label" ng-class="{'label-warning': s.state == 'waiting', 'label-success': s.state == 'active', 'label-default': s.state == 'passive', 'label-danger': s.state == 'dropped'}">{{s.state_name}}</span>
       </td>
       <td>
       	<button type="button" class="btn btn-danger btn-xs" ng-click="remove(s.key)">

@@ -55,6 +55,16 @@ class Group(object):
 
 class Subject(object):
     """docstring for Subject"""
+
+    states = dict(
+        0='passive',
+        1='initial',
+        2='dropped',
+        3='suspended',
+        100='active',
+        101='waiting',
+        )
+
     def __init__(self, session, key=None):
         super(Subject, self).__init__()
         self.session = session
@@ -62,7 +72,7 @@ class Subject(object):
             key = str(uuid.uuid4())
         self.key = key
         self.name = None
-        self.status = 'passive'
+        self.state = 0
         self.total_profit = 0
         self.current_balance = session.starting_balance
         self.profit = 0
@@ -73,11 +83,17 @@ class Subject(object):
         self.my_bid = -1
         self.my_ask = -1
 
+    def set_state(self, state):
+        d = Subject.states
+        self.state = list(d.keys())[list(d.values()).index(state)]
+        return self.state
+
     def to_dict(self):
         return dict(
             key=self.key,
             name=self.name,
-            status=self.status
+            state=self.state,
+            state_name=Subject.states[self.state]
             )
 
 
