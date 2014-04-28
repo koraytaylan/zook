@@ -7,6 +7,6 @@ var app = angular.module('zook', ['ngRoute']);
 app.config(['$routeProvider', function ($routeProvider) {
     $routeProvider
         .when('/clients', {templateUrl: 'views/server/clients.html', controller: 'ClientsCtrl'})
-        .when('/settings', {templateUrl: 'views/server/clients.html',   controller: 'ClientsCtrl'})
+        .when('/settings', {templateUrl: 'views/server/settings.html',   controller: 'SettingsCtrl'})
         .otherwise({redirectTo: '/clients'});
 }]);

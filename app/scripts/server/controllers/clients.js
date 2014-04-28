@@ -3,9 +3,19 @@
 'use strict';
 
 app.controller('ClientsCtrl', [ '$scope', 'SocketService', function ($scope, socket) {
-    $scope.isInitialized = false;
     $scope.isLoading = true;
     $scope.subjects = [];
+
+    $scope.predicate = 'name';
+    $scope.reverse = false;
+/*
+    socket.onMessage(function (message) {
+        if (message.type === 'set_subject'
+                || message.type === 'initialize') {
+            $scope.getSubjects();
+        }
+    });
+*/
 
     $scope.setError = function (errorMessage) {
         $scope.showError = true;
@@ -16,28 +26,31 @@ app.controller('ClientsCtrl', [ '$scope', 'SocketService', function ($scope, soc
         $scope.isLoading = true;
         socket.send('get_subjects').then(function (message) {
             $scope.isLoading = false;
-            $scope.subjects = message.data;
+            if (!message.isError) {
+                $scope.subjects = message.data;
+            }
         });
-        $scope.isInitialized = true;
     };
 
     $scope.remove = function (key) {
         $scope.isLoading = true;
         socket.send('delete_subject', key).then(function (message) {
+            var i = 0,
+                s = null,
+                ss = null;
             $scope.isLoading = false;
             if (message.type === 'invalid_operation') {
                 $scope.setError(message.data);
             } else {
-                var s = null;
-                for (var i = 0; i < $scope.subjects.length; i++) {
-                    var ss = $scope.subjects[i];
-                    if (ss.key == key) {
+                for (i = 0; i < $scope.subjects.length; i += 1) {
+                    ss = $scope.subjects[i];
+                    if (ss.key === key) {
                         s = ss;
                         break;
                     }
-                };
+                }
                 if (s !== null) {
-                    var i = $scope.subjects.indexOf(s);
+                    i = $scope.subjects.indexOf(s);
                     $scope.subjects.splice(i, 1);
                 }
             }
@@ -51,4 +64,23 @@ app.controller('ClientsCtrl', [ '$scope', 'SocketService', function ($scope, soc
     if (socket.isInitialized) {
         $scope.getSubjects();
     }
+/*
+    socket.onInitialize(function () {
+        $scope.getSubjects();
+    });
+*/
+    $scope.$on('socket-initialize', function () {
+        $scope.getSubjects();
+    });
+
+    $scope.$on('socket-receive', function (event, message) {
+        if (message.type === 'set_subject'
+                || message.type === 'get_subject') {
+            $scope.getSubjects();
+        }
+    });
+
+    $scope.$on('$destroy', function () {
+        console.log('Clients controller destroyed');
+    });
 }]);

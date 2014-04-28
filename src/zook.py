@@ -9,7 +9,6 @@ class Session(object):
     def __init__(self):
         super(Session, self).__init__()
         self.key = str(uuid.uuid4())
-        self.subjects = {}
         self.phases = {}
         self.groups = {}
         self.current_phase = 0
@@ -17,10 +16,6 @@ class Session(object):
         self.is_finished = False
         self.group_size = 6
         self.starting_balance = 5
-
-    def find_subject(self, key):
-        ss = self.subjects.values()
-        return next((s for s in ss if s.key == key or s.name == key), None)
 
     def start(self):
         for s in (s for s in self.subjects.values() if s.is_active):
@@ -66,10 +61,8 @@ class Subject(object):
         if key is None:
             key = str(uuid.uuid4())
         self.key = key
-        self.session.subjects[self.key] = self
         self.name = None
-        self.is_active = True
-        session.subjects[self.key] = self
+        self.status = 'passive'
         self.total_profit = 0
         self.current_balance = session.starting_balance
         self.profit = 0
@@ -83,13 +76,26 @@ class Subject(object):
     def to_dict(self):
         return dict(
             key=self.key,
-            name=self.name
+            name=self.name,
+            status=self.status
             )
+
+
+class Experimenter(object):
+    """docstring for Experimenter"""
+    def __init__(self, session, key=None):
+        super(Experimenter, self).__init__()
+        self.session = session
+        if key is None:
+            key = str(uuid.uuid4())
+        self.key = key
 
 
 class Application(tornado.web.Application):
     """docstring for Application"""
     def __init__(self, public_path):
+        self.subjects = {}
+        self.experimenters = {}
         self.public_path = public_path
         _handlers = [
             (r'/client', handlers.ClientHandler),
@@ -111,7 +117,21 @@ class Application(tornado.web.Application):
         self.sessions = {}
         self.sockets = {}
 
-    def find_socket(self, key):
+    def get_socket(self, key):
         ss = self.sockets.values()
         return next((s for s in ss if s.key == key), None)
+
+    def get_subject(self, key):
+        ss = self.subjects.values()
+        return next((s for s in ss if s.key == key or s.name == key), None)
+
+    def set_subject(self, subject):
+        self.subjects[subject.key] = subject
+
+    def get_experimenter(self, key):
+        es = self.experimenters.values()
+        return next((e for e in es if e.key == key), None)
+
+    def set_experimenter(self, experimenter):
+        self.experimenters[experimenter.key] = experimenter
         

@@ -13,6 +13,7 @@ app.directive('subjectInitialize', [ 'SocketService', function (socket) {
             $scope.$on('continue', function () {
                 var name = $scope.txtClientName || 'Client1';
                 socket.send('set_subject', {
+                    status: 'waiting',
                     name: name
                 }).then(function (message) {
                     if (message.type === 'invalid_operation') {

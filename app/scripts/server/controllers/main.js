@@ -7,10 +7,11 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', function ($scope, socket
     $scope.isStarted = false;
     $scope.isPaused = false;
 
-    socket.onInitialize(function (message) {
+    $scope.$on('socket-initialize', function (event, message) {
         var data = message.data;
         $scope.key = data.key;
         $scope.session = data.session;
+        $scope.isAuthorized = data.is_experimenter;
     });
 
     $scope.authorize = function () {

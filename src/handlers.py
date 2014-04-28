@@ -52,6 +52,10 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
     def on_close(self):
         if hasattr(self, 'key'):
             del self.application.sockets[self.key]
+            s = self.application.get_subject(self.key)
+            if s is not None:
+                s.status = 'dropped'
+                self.notify('set_subject', s.to_dict())
 
     def on_message(self, message):
         o = None
@@ -87,15 +91,17 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                 reply = self.authorize(o)
             else:
                 raise InvalidOperationException('Unknown message type')
-            return self.send(message_type, reply, id)
+            self.send(message_type, reply, id)
         except InvalidMessageException as e:
-            return self.send('invalid_message', str(e), id)
+            self.send('invalid_message', str(e), id)
         except InvalidOperationException as e:
-            return self.send('invalid_operation', str(e), id)
+            self.send('invalid_operation', str(e), id)
         except UnauthorizedOperationException as e:
-            return self.send('unauthorized_operation', str(e), id)
+            self.send('unauthorized_operation', str(e), id)
         except Exception as e:
-            return self.send('internal_error', str(e), id)
+            self.send('internal_error', traceback.format_exc(), id)
+        else:
+            self.notify(message_type, reply)
 
     def send(self, message_type='reply', message=None, id=None):
         m = dict(
@@ -107,20 +113,25 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             m['id'] = id
         self.write_message(json.dumps(m))
 
+    def notify(self, message_type, message, is_global=False):
+        for s in self.application.sockets.values():
+            if s is not self and (is_global or s.is_experimenter):
+                s.send(message_type, message)
+
     def check_data(self, message, keys=[]):
         if 'data' not in message or message['data'] is None:
-            raise SocketException('Message should contain "data"')
+            raise InvalidOperationException('Message should contain "data"')
         if len(keys) > 0:
             data = message['data']
             for key in keys:
                 if key not in data or not data[key] or not data[key].strip():
-                    raise SocketException(
+                    raise InvalidOperationException(
                         'Message "data" should contain a "{0}"'.format(key)
                         )
 
     def check_experimenter(self):
         if not self.is_experimenter:
-            raise SocketException('Access denied')
+            raise UnauthorizedOperationException('Access denied')
 
     def find_session(self):
         session = None
@@ -148,19 +159,22 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         if 'data' in message and message['data'] is not None:
             key = self.parse_key(message['data'])
             if key is not None:
-                subject = self.session.find_subject(key)
-                socket = self.application.find_socket(key)
+                socket = self.application.get_socket(key)
                 if socket is not None:
                     socket.close()
                 del self.application.sockets[self.key]
                 self.key = key
                 self.application.sockets[self.key] = self
+                exp = self.application.get_experimenter(self.key)
+                if exp is not None:
+                    self.is_experimenter = True
         data['key'] = self.key
         data['session'] = dict(
             key=str(self.session.key),
             is_started=self.session.is_started,
             is_finished=self.session.is_finished
             )
+        data['is_experimenter'] = self.is_experimenter
         self.is_initialized = True
         return data
 
@@ -172,7 +186,10 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             key = message['data']
         else:
             key = self.key
-        subject = self.session.find_subject(key)
+            subject = self.application.get_subject(key)
+            if subject is None:
+                subject = zook.Subject(self.session, self.key)
+                self.application.set_subject(subject)
         o = None
         if subject is not None:
             o = subject.to_dict()
@@ -181,7 +198,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
     def get_subjects(self, message):
         self.check_experimenter()
         ss = []
-        for s in self.session.subjects.values():
+        for s in self.application.subjects.values():
             ss.append(s.to_dict())
         return ss
 
@@ -195,30 +212,33 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             self.check_data(message)
             key = self.key
         data = message['data']
-        subject = self.session.find_subject(key)
+        subject = self.application.get_subject(key)
         if subject is None:
             subject = zook.Subject(self.session, key)
+            self.application.set_subject(subject)
         if 'name' in data:
             name = data['name']
             if not name or not name.strip():
-                del self.session.subjects[key]
+                del self.application.subjects[key]
                 raise InvalidOperationException('Client name can not be empty')
-            s = self.session.find_subject(name)
+            s = self.application.get_subject(name)
             if s is not None:
-                del self.session.subjects[key]
+                del self.application.subjects[key]
                 raise InvalidOperationException('Client name already in use')
             subject.name = name
         elif not subject.name:
-            del self.session.subjects[key]
+            del self.application.subjects[key]
             raise InvalidOperationException('Client name can not be empty')
+        if 'status' in data:
+            subject.status = data['status']
         return subject.to_dict()
 
     def delete_subject(self, message):
         self.check_data(message)
         self.check_experimenter(message)
         key = message['data']
-        socket = self.application.find_socket(key)
-        subject = self.session.find_subject(key)
+        socket = self.application.get_socket(key)
+        subject = self.application.get_subject(key)
         if socket is not None:
             socket.close()
         if subject is not None:
@@ -236,6 +256,8 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         password = data['password']
         if login == 'exp' and password == '1':
             self.is_experimenter = True
+            e = zook.Experimenter(self.session, self.key)
+            self.application.set_experimenter(e)
             return True
         else:
             raise UnauthorizedOperationException()

@@ -3,7 +3,7 @@
 'use strict';
 
 app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', function ($scope, socket, log) {
-    $scope.isWaiting = true;
+    $scope.status = 'passive';
     $scope.isInitialized = false;
     $scope.instructionsVisible = false;
     $scope.timerIsRunning = false;
@@ -94,18 +94,25 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', function (
         $scope.isWaiting = false;
     });
 
-    socket.onInitialize(function (message) {
+    $scope.$on('socket-initialize', function (event, message) {
         var data = message.data;
         $scope.clientKey = data.key;
         $scope.session = data.session;
 
         socket.send('get_subject').then(function (message) {
-            $scope.subject = message.data;
-            if ($scope.subject !== null) {
-                $scope.state = -1;
-            } else {
-                $scope.state = 0;
-                $scope.isWaiting = false;
+            var s = message.data;
+            if (s !== null) {
+                $scope.status = s.status;
+                $scope.name = s.name;
+                switch ($scope.status) {
+                case 'active':
+                case 'waiting':
+                    $scope.state = -1;
+                    break;
+                default:
+                    $scope.state = 0;
+                    break;
+                }
             }
         });
     });

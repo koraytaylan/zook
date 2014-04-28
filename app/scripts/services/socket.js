@@ -6,33 +6,11 @@ app.factory('SocketService', ['$q', '$rootScope', 'LogService', function ($q, $r
     var service = {},
         callbacks = {},
         lastId = 0,
-        onOpenCallbacks = [],
-        onCloseCallbacks = [],
-        onInitializeCallbacks = [],
-        ws = null,
-        notify = function () {
-            var args = arguments,
-                cbs = [].shift.apply(args);
-            angular.forEach(cbs, function (callback) {
-                callback.apply(this, args);
-            });
-        };
+        ws = null;
 
-    ws = new WebSocket("ws://localhost:8080/socket");
-
+    service.isOpen = false;
+    service.isInitializing = true;
     service.isInitialized = false;
-
-    service.onOpen = function (callback) {
-        onOpenCallbacks.push(callback);
-    };
-
-    service.onClose = function (callback) {
-        onCloseCallbacks.push(callback);
-    };
-
-    service.onInitialize = function (callback) {
-        onInitializeCallbacks.push(callback);
-    };
 
     service.send = function (type, message) {
         lastId += 1;
@@ -54,58 +32,70 @@ app.factory('SocketService', ['$q', '$rootScope', 'LogService', function ($q, $r
     };
 
     service.initialize = function () {
-        return service.send('initialize', localStorage.getItem('key')).then(function (message) {
-            var data = message.data;
-            localStorage.setItem('key', data.key);
-            service.isInitialized = true;
-            return message;
-        });
+        var defer = $q.defer();
+        ws = new WebSocket("ws://localhost:8080/socket");
+        service.isInitializing = true;
+        ws.onopen = function () {
+            service.isOpen = true;
+            log.info("Socket: opened!");
+            service.send('initialize', localStorage.getItem('key')).then(function (message) {
+                var data = message.data;
+                localStorage.setItem('key', data.key);
+                service.isInitialized = true;
+                return message;
+            }).then(function (message) {
+                service.isInitializing = false;
+                defer.resolve(message);
+                log.info("Socket: initialized");
+                $rootScope.$broadcast('socket-initialize', message);
+            });
+        };
+
+        ws.onclose = function () {
+            service.isInitialized = false;
+            service.isOpen = false;
+            log.info("Socket: closed!");
+            $rootScope.$broadcast('socket-close');
+        };
+
+        ws.onmessage = function (message) {
+            var cb = null,
+                logMessage = null;
+            try {
+                message = JSON.parse(message.data);
+            } catch (ex) {
+                log.error('Socket: invalid message received', message);
+            }
+            if (message !== null) {
+                if (callbacks.hasOwnProperty(message.id)) {
+                    cb = callbacks[message.id];
+                    message.isReply = true;
+                    message.roundtrip = new Date().getTime() - cb.timestamp;
+                    logMessage = 'Socket: message reply received ' + message.roundtrip + 'ms';
+                    if (cb.type === message.type) {
+                        log.success(logMessage, message);
+                    } else {
+                        message.isError = true;
+                        log.error(logMessage, message);
+                    }
+                    $rootScope.$apply(cb.defer.resolve(message));
+                    delete callbacks[message.id];
+                } else {
+                    message.isReply = false;
+                    log.info('Socket: message received', message);
+                    $rootScope.$broadcast('socket-receive', message);
+                }
+            }
+        };
+
+        return defer.promise;
     };
 
     service.close = function () {
         ws.close();
     };
 
-    ws.onopen = function () {
-        log.info("Socket: opened!");
-        notify(onOpenCallbacks);
-        service.initialize().then(function (message) {
-            notify(onInitializeCallbacks, message);
-        });
-    };
-
-    ws.onclose = function () {
-        log.info("Socket: closed!");
-        notify(onCloseCallbacks);
-    };
-
-    ws.onmessage = function (message) {
-        var cb = null,
-            logMessage = null;
-        try {
-            message = JSON.parse(message.data);
-        } catch (ex) {
-            log.error('Socket: invalid message received', message);
-        }
-        if (message !== null) {
-            if (callbacks.hasOwnProperty(message.id)) {
-                cb = callbacks[message.id];
-                message.isReply = true;
-                message.roundtrip = new Date().getTime() - cb.timestamp;
-                logMessage = 'Socket: message reply received ' + message.roundtrip + 'ms';
-                if (cb.type === message.type) {
-                    log.success(logMessage, message);
-                } else {
-                    log.error(logMessage, message);
-                }
-                $rootScope.$apply(cb.defer.resolve(message));
-                delete callbacks[message.id];
-            } else {
-                message.isReply = false;
-                log.info('Socket: message received', message);
-            }
-        }
-    };
+    service.initialize();
 
     window.socket = service;
 

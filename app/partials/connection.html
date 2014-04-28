@@ -1,0 +1,19 @@
+{{isConnected}}
+<div class="modal {{isConnected && 'hide' || 'show'}}">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title">Connection</h4>
+      </div>
+      <div class="modal-body">
+        {{status}}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" ng-disabled="isConnecting" ng-click="reconnect()">
+          <span class="{{ isConnecting && 'glyphicon glyphicon-refresh' || 'glyphicon glyphicon-ok'}}"></span> {{ isConnecting && 'Wait' || 'Reconnect' }}
+        </button>
+      </div>
+    </div><!-- /.modal-content -->
+  </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+<div class="modal-backdrop fade in {{isConnected && 'hide' || 'show'}}" ng-show="!isConnected"></div>
