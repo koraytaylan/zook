@@ -89,6 +89,8 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                 reply = self.get_subjects(o)
             elif message_type == 'authorize':
                 reply = self.authorize(o)
+            elif message_type == 'suspend_subject':
+                reply = self.suspend_subject(o)
             else:
                 raise InvalidOperationException('Unknown message type')
             self.send(message_type, reply, id)
@@ -171,7 +173,12 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                 else:
                     sub = self.application.get_subject(self.key)
                     if sub is not None:
-                        
+                        if sub.is_suspended:
+                            raise InvalidOperationException(
+                                'Your client has been suspended')
+                        elif zook.Subject.states[sub.state] == 'dropped':
+                            sub.restore_state()
+
         data['key'] = self.key
         data['session'] = dict(
             key=str(self.session.key),
@@ -235,11 +242,12 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             raise InvalidOperationException('Client name can not be empty')
         if 'status' in data:
             subject.status = data['status']
+        subject.decide_state()
         return subject.to_dict()
 
     def delete_subject(self, message):
         self.check_data(message)
-        self.check_experimenter(message)
+        self.check_experimenter()
         key = message['data']
         socket = self.application.get_socket(key)
         subject = self.application.get_subject(key)
@@ -253,14 +261,15 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
 
     def suspend_subject(self, message):
         self.check_data(message)
-        self.check_experimenter(message)
+        self.check_experimenter()
         key = message['data']
         socket = self.application.get_socket(key)
         subject = self.application.get_subject(key)
         if socket is not None:
             socket.close()
         if subject is not None:
-            subject.set_state('suspended')
+            subject.is_suspended = True
+            subject.set_state('passive')
             return True
         else:
             return False

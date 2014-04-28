@@ -56,14 +56,13 @@ class Group(object):
 class Subject(object):
     """docstring for Subject"""
 
-    states = dict(
-        0='passive',
-        1='initial',
-        2='dropped',
-        3='suspended',
-        100='active',
-        101='waiting',
-        )
+    states = {
+        0: 'passive',
+        1: 'initial',
+        2: 'dropped',
+        100: 'active',
+        101: 'waiting'
+        }
 
     def __init__(self, session, key=None):
         super(Subject, self).__init__()
@@ -72,7 +71,13 @@ class Subject(object):
             key = str(uuid.uuid4())
         self.key = key
         self.name = None
-        self.state = 0
+        self.previous_state = 1
+        self.state = 1
+        self.is_suspended = False
+        self.is_initialized = False
+
+        self.group = None
+
         self.total_profit = 0
         self.current_balance = session.starting_balance
         self.profit = 0
@@ -85,15 +90,27 @@ class Subject(object):
 
     def set_state(self, state):
         d = Subject.states
+        self.previous_state = self.state
         self.state = list(d.keys())[list(d.values()).index(state)]
         return self.state
+
+    def decide_state(self):
+        if not self.is_initialized and self.name is None:
+            self.set_state('initial')
+        else:
+            self.is_initialized = True
+            self.set_state('waiting')
+
+    def restore_state(self):
+        self.state = self.previous_state
 
     def to_dict(self):
         return dict(
             key=self.key,
             name=self.name,
             state=self.state,
-            state_name=Subject.states[self.state]
+            state_name=Subject.states[self.state],
+            is_suspended=self.is_suspended
             )
 
 

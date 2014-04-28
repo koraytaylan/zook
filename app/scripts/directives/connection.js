@@ -27,13 +27,14 @@ app.directive('connection', [ 'SocketService', function (socket) {
                 }
             };
 
-            $scope.$on('socket-close', function () {
+            $scope.$on('socket-closed', function () {
+                $scope.isConnecting = false;
                 $scope.isConnected = false;
                 $scope.status = 'Connection dropped. Please try to reconnect.';
                 $scope.$apply();
             });
 
-            $scope.$on('socket-initialize', function () {
+            $scope.$on('socket-initialized', function () {
                 $scope.isConnecting = socket.isInitializing;
                 $scope.isConnected = socket.isInitialized;
             });

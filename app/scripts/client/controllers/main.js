@@ -7,6 +7,8 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', function (
     $scope.isInitialized = false;
     $scope.instructionsVisible = false;
     $scope.timerIsRunning = false;
+    $scope.isWaiting = false;
+    $scope.isInitialized = false;
 
     $scope.title = 'Welcome to Zook!';
     $scope.subject = null;
@@ -83,18 +85,16 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', function (
     };
 
     $scope.$on('state-waiting', function () {
-        log.info('Event: MainController <- state-waiting');
         $scope.state = -1;
         $scope.isWaiting = true;
     });
 
     $scope.$on('state-initial', function () {
-        log.info('Event: MainController <- state-initial');
         $scope.state = 0;
         $scope.isWaiting = false;
     });
 
-    $scope.$on('socket-initialize', function (event, message) {
+    $scope.$on('socket-initialized', function (event, message) {
         var data = message.data;
         $scope.clientKey = data.key;
         $scope.session = data.session;
@@ -102,18 +102,28 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', function (
         socket.send('get_subject').then(function (message) {
             var s = message.data;
             if (s !== null) {
-                $scope.status = s.status;
+                $scope.state = s.state;
+                $scope.state_name = s.state_name;
                 $scope.name = s.name;
-                switch ($scope.status) {
+                switch ($scope.state_name) {
+                case 'initial':
+                    $scope.isInitialized = false;
+                    $scope.isWaiting = false;
+                    break;
                 case 'active':
                 case 'waiting':
-                    $scope.state = -1;
+                    $scope.isInitialized = true;
+                    $scope.isWaiting = true;
                     break;
                 default:
-                    $scope.state = 0;
+                    $scope.isWaiting = true;
                     break;
                 }
             }
         });
+    });
+
+    $scope.$on('socket-closed', function (message) {
+        $scope.isWaiting = false;
     });
 }]);

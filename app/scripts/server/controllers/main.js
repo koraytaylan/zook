@@ -7,7 +7,7 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', function ($scope, socket
     $scope.isStarted = false;
     $scope.isPaused = false;
 
-    $scope.$on('socket-initialize', function (event, message) {
+    $scope.$on('socket-initialized', function (event, message) {
         var data = message.data;
         $scope.key = data.key;
         $scope.session = data.session;
@@ -20,7 +20,7 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', function ($scope, socket
             .then(function (message) {
                 if (message.type !== 'invalid_operation') {
                     $scope.isAuthorized = true;
-                    $scope.$broadcast('authorize');
+                    $scope.$broadcast('authorized');
                 }
             });
     };

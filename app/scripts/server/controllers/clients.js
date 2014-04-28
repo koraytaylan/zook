@@ -8,6 +8,8 @@ app.controller('ClientsCtrl', [ '$scope', 'SocketService', function ($scope, soc
 
     $scope.predicate = 'name';
     $scope.reverse = false;
+
+    $scope.Math = window.Math;
 /*
     socket.onMessage(function (message) {
         if (message.type === 'set_subject'
@@ -44,7 +46,7 @@ app.controller('ClientsCtrl', [ '$scope', 'SocketService', function ($scope, soc
         });
     };
 
-    $scope.$on('authorize', function () {
+    $scope.$on('authorized', function () {
         $scope.getSubjects();
     });
 
@@ -56,7 +58,7 @@ app.controller('ClientsCtrl', [ '$scope', 'SocketService', function ($scope, soc
         $scope.getSubjects();
     });
 */
-    $scope.$on('socket-initialize', function () {
+    $scope.$on('socket-initialized', function () {
         $scope.getSubjects();
     });
 
@@ -65,9 +67,5 @@ app.controller('ClientsCtrl', [ '$scope', 'SocketService', function ($scope, soc
                 || message.type === 'get_subject') {
             $scope.getSubjects();
         }
-    });
-
-    $scope.$on('$destroy', function () {
-        console.log('Clients controller destroyed');
     });
 }]);

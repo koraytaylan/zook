@@ -39,15 +39,18 @@ app.factory('SocketService', ['$q', '$rootScope', 'LogService', function ($q, $r
             service.isOpen = true;
             log.info("Socket: opened!");
             service.send('initialize', localStorage.getItem('key')).then(function (message) {
-                var data = message.data;
-                localStorage.setItem('key', data.key);
-                service.isInitialized = true;
-                return message;
-            }).then(function (message) {
                 service.isInitializing = false;
-                defer.resolve(message);
-                log.info("Socket: initialized");
-                $rootScope.$broadcast('socket-initialize', message);
+                if (!message.isError) {
+                    var data = message.data;
+                    localStorage.setItem('key', data.key);
+                    service.isInitialized = true;
+                    defer.resolve(message);
+                    log.info("Socket: initialized");
+                    $rootScope.$broadcast('socket-initialized', message);
+                } else {
+                    ws.close();
+                    defer.reject(message);
+                }
             });
         };
 
@@ -55,7 +58,7 @@ app.factory('SocketService', ['$q', '$rootScope', 'LogService', function ($q, $r
             service.isInitialized = false;
             service.isOpen = false;
             log.info("Socket: closed!");
-            $rootScope.$broadcast('socket-close');
+            $rootScope.$broadcast('socket-closed');
         };
 
         ws.onmessage = function (message) {
