@@ -12,9 +12,12 @@ class Session(object):
         self.key = str(uuid.uuid4())
         self.phases = {}
         self.groups = {}
-        self.current_phase = -1
+        self.phase = 0
+        self.period = 0
+        self.stage = 0
         self.is_started = False
         self.is_finished = False
+        self.is_all_ready = False
 
         self.cost_low = 3.0
         self.cost_high = 5.5
@@ -117,7 +120,8 @@ class Session(object):
                 qs = []
                 for k in j:
                     q += 1
-                    qs.append(self.AValues[s][r][q + 1] - k)
+                    if q + 1 < len(j):
+                        qs.append(self.AValues[s][r][q + 1] - k)
                 rs.append(qs)
             self.AValueUp.append(rs)
 
@@ -129,7 +133,7 @@ class Phase(object):
         self.session = session
         self.number = number
         self.periods = {}
-        self.current_period = -1
+        self.period = -1
 
 
 class Period(object):
@@ -173,16 +177,27 @@ class Subject(object):
         self.is_initialized = False
 
         self.group = 0
+        self.role = 0
 
+        self.period_profit = 0
+        self.phase_profit = 0
         self.total_profit = 0
-        self.current_balance = session.starting_balance
-        self.profit = 0
+        self.current_balance = 0
         self.bid_diff_up = 222
         self.bid_diff_down = 222
         self.up_covered = -2
         self.down_covered = -2
         self.my_bid = -1
         self.my_ask = -1
+
+        self.unit_cost = 0
+        self.example_cost = 0
+        self.my_provide = 0
+        self.default_provide = 0
+
+        self.time_for_input = 0
+        self.time_for_result = 0
+        self.time_left = 0
 
     def set_state(self, state):
         d = Subject.states
@@ -272,6 +287,17 @@ class Application(tornado.web.Application):
         self.experimenters[experimenter.key] = experimenter
 
     def start_session(self, session):
+        session.is_started = True
+        session.is_finished = False
+        session.phase = 0
+        session.period = 1
+        session.stage = 1
+        self.proceed(session)
+
+    def finish_session(self, session):
+        session.is_finished = True
+
+    def initialize_period(self, session):
         roles = list(range(0, 6))
         random.shuffle(roles)
         ss = self.subjects.values()
@@ -283,11 +309,51 @@ class Application(tornado.web.Application):
                 group += 1
             s.group = group
             s.role = roles[i % session.group_size]
-            s.total_profit = 0
-            s.current_balance = self.starting_balance
-            s.profit = 0
-        self.is_started = True
-        self.is_finished = False
+            s.period_profit = 0
+            if session.phase == 0 and session.period == 1:
+                s.total_profit = 0
+                s.current_balance = self.starting_balance
+            if session.period == 1:
+                s.phase_profit = 0
+                s.time_for_input = 100
+                s.time_for_result = 125
+            elif session.period == 2:
+                s.time_for_input = 85
+                s.time_for_result = 85
+            else:
+                s.time_for_input = 75
+                s.time_for_result = 65
+            s.time_left = 3
+
+            s.bid_diff_up = 222
+            s.bid_diff_down = 222
+            s.up_covered = -2
+            s.down_covered = -2
+
+            ps = session.AValuesParamSets[session.phase, session.period]
+            if ps < 2:
+                s.unit_cost = session.cost_low
+            else:
+                s.unit_cost = session.cost_high
+            s.example_cost = session.AValueUp[ps][s.role][2]
+            defp = 0
+            while session.AValueUp[ps][s.role][defp] > s.unit_cost / 2:
+                defp += 1
+            s.default_provide = defp
+
+    def proceed(self, session):
+        continue_to_next_period = False
+        if ((self.phase == 0 and self.period < 13)
+                or (self.phase > 0 and self.period < 25)):
+            continue_to_next_period = True
+        elif self.phase == 3:
+            return self.finish_session(session)
+        else:
+            session.phase += 1
+            session.period = 1
+            session.stage = 1
+            return self.proceed(session)
+        self.initialize_period(session)
 
     def roundup(x, y):
         h = y
