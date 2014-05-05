@@ -2,7 +2,7 @@
 /*global angular, app, WebSocket, localStorage*/
 'use strict';
 
-app.factory('SocketService', ['$q', '$rootScope', 'LogService', function ($q, $rootScope, log) {
+app.factory('SocketService', ['$q', '$rootScope', '$location', 'LogService', function ($q, $rootScope, $location, log) {
     var socket = {},
         callbacks = {},
         lastId = 0,
@@ -33,7 +33,7 @@ app.factory('SocketService', ['$q', '$rootScope', 'LogService', function ($q, $r
 
     socket.initialize = function () {
         var defer = $q.defer();
-        ws = new WebSocket("ws://localhost:8080/socket");
+        ws = new WebSocket('ws://' + $location.host() + ':' + $location.port() + '/socket');
         socket.isInitializing = true;
         ws.onopen = function () {
             socket.isOpen = true;
