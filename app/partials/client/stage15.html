@@ -1,0 +1,12 @@
+<p ng-if="group.direction > -1">Your group's Accept Bids were: <strong ng-repeat-start="value in group.bids">{{value | currency}}, </strong><strong ng-repeat-end>{{value | currency}}</strong>.</p>
+<p ng-if="group.direction > -1">These Accept Bids sum to {{group.sum_bids | currency}}, which {{group.up_covered == 1 && 'covers ' || 'did not cover '}}the {{session.cost | currency}} cost.</p>
+<p ng-if="group.direction < 1">Your group's Accept Asks were: <strong ng-repeat-start="value in group.asks">{{value | currency}}, </strong><strong ng-repeat-end>{{value | currency}}</strong>.</p>
+<p ng-if="group.direction < 1">These Accept Asks sum to <strong>{{group.sum_asks | currency}}</strong>, which {{group.down_covered == 1 && 'falls within ' || 'exceeds '}}the <strong>{{session.cost | currency}}</strong> cost savings.</p>
+<p ng-if="group.coin_flip != 0">The coin flip was {{group.coin_flip == 1 && 'heads' || 'tails'}}.</p>
+<p ng-if="group.outcome == 1">Zook was increased from {{group.quantity_initial}} to {{group.quantity_up}}.</p>
+<p ng-if="group.outcome == -1">Zook was decreased from {{group.quantity_initial}} to {{group.quantity_down}}.</p>
+<p ng-if="group.outcome == 0">The quantity of Zook was not changed.</p>
+<p ng-if="group.outcome == 1">The increase was worth <strong>{{subject.value_up | currency}}</strong> to you, the sum of others’ Accept Bids was <strong>{{group.sum_bids - subject.my_bid | currency}}</strong>, so your cost of the increase was <strong>{{subject.my_cost | currency}}</strong>>.</p>
+<p ng-if="group.outcome == -1">The sum of others Accept Asks was <strong>{{group.sum_asks - subject.my_ask | currency}}</strong>, so your share of the cost savings was <strong>{{subject.my_rebate | currency}}</strong>, while the decrease from {{group.quantity_initial}} to {{group.quantity_down}} made Zook worth <strong>{{subject.value_down | currency}}</strong> less to you.</p>
+<p>Your profit this period was <strong>{{subject.profit | currency}}</strong>, your earnings so far are <strong>{{subject.total_profit | currency}}</strong>.</p>
+<p>Your bank balance is currently <strong>{{subject.current_balance | currency}}</strong>.</p>

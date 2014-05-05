@@ -14,24 +14,15 @@
     <!-- Collect the nav links, forms, and other content for toggling -->
     <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
       <ul class="nav navbar-nav">
-        <li ng-class="{ active: isActive('/clients')}"><a href="#/clients">Clients</a></li>
-        <li ng-class="{ active: isActive('/settings')}"><a href="#/settings">Settings</a></li>
+        <li ng-class="{ active: isActiveLocation('/clients')}"><a href="#/clients">Clients</a></li>
+        <li ng-class="{ active: isActiveLocation('/settings')}"><a href="#/settings">Settings</a></li>
       </ul>
       <form class="navbar-form navbar-left">
         <div class="btn-group">
-          <button type="button" class="btn btn-primary">
-            <span class="glyphicon glyphicon-fast-backward"></span> Restart
-          </button>
-          <button type="button" class="btn btn-success">
+          <button type="button" class="btn btn-success" ng-click="start()" ng-disabled="session.is_started">
             <span class="glyphicon glyphicon-play"></span> Start
           </button>
-          <button type="button" class="btn btn-info">
-            <span class="glyphicon glyphicon-step-forward"></span> Next Period
-          </button>
-          <button type="button" class="btn btn-info">
-            <span class="glyphicon glyphicon-fast-forward"></span> Next Phase
-          </button>
-          <button type="button" class="btn btn-danger">
+          <button type="button" class="btn btn-danger" ng-click="stop()" ng-disabled="!session.is_started">
             <span class="glyphicon glyphicon-stop"></span> Stop
           </button>
         </div>

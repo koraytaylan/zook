@@ -1,7 +1,7 @@
 <form role="form">
   <div class="form-group">
     <label class="control-label" for="txtClientName">Enter a name for this client</label>
-    <input ng-model="txtClientName" type="text" class="form-control" placeholder="Client1">
+    <input id="txtClientName" ng-model="name" type="text" class="form-control">
   </div>
 </form>
 <div class="alert alert-danger" ng-show="showError">{{errorMessage}}</div>

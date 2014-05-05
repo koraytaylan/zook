@@ -8,6 +8,29 @@ import os
 import sys
 import traceback
 import logging
+import threading
+import re
+
+
+def to_dict(obj, classkey=None):
+    if isinstance(obj, dict):
+        data = {}
+        for (k, v) in obj.items():
+            data[k] = to_dict(v, classkey)
+        return data
+    elif hasattr(obj, "_ast"):
+        return to_dict(obj._ast())
+    #elif hasattr(obj, "__iter__"):
+    #    return [to_dict(v, classkey) for v in obj]
+    elif hasattr(obj, "__dict__"):
+        data = dict([(key, to_dict(value, classkey))
+                    for key, value in obj.__dict__.items()
+                    if not callable(value) and not key.startswith('_')])
+        if classkey is not None and hasattr(obj, "__class__"):
+            data[classkey] = obj.__class__.__name__
+        return data
+    else:
+        return obj
 
 
 class ClientHandler(tornado.web.RequestHandler):
@@ -48,6 +71,8 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         self.application.sockets[self.key] = self
         self.is_initialized = False
         self.is_experimenter = False
+        self.timer = None
+        self.timer_started_at = None
 
     def on_close(self):
         if hasattr(self, 'key'):
@@ -81,6 +106,10 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                     'socket should be initialized first')
             elif message_type == 'initialize':
                 reply = self.init(o)
+            elif message_type == 'get_session':
+                reply = self.get_session(o)
+            elif message_type == 'get_group':
+                reply = self.get_group(o)
             elif message_type == 'get_subject':
                 reply = self.get_subject(o)
             elif message_type == 'set_subject':
@@ -91,6 +120,12 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                 reply = self.authorize(o)
             elif message_type == 'suspend_subject':
                 reply = self.suspend_subject(o)
+            elif message_type == 'start_session':
+                reply = self.start_session(o)
+            elif message_type == 'stop_session':
+                reply = self.stop_session(o)
+            elif message_type == 'continue_session':
+                reply = self.continue_session(o)
             else:
                 raise InvalidOperationException('Unknown message type')
             self.send(message_type, reply, id)
@@ -109,7 +144,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         m = dict(
             type=message_type,
             timestamp=int(time.time() * 1000),
-            data=message
+            data=to_dict(message)
         )
         if id is not None:
             m['id'] = id
@@ -120,7 +155,8 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             if s is not self and (is_global or s.is_experimenter):
                 s.send(message_type, message)
 
-    def check_data(self, message, keys=[]):
+    @staticmethod
+    def check_data(message, keys=[]):
         if 'data' not in message or message['data'] is None:
             raise InvalidOperationException('Message should contain "data"')
         if len(keys) > 0:
@@ -173,6 +209,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                 else:
                     sub = self.application.get_subject(self.key)
                     if sub is not None:
+                        self.session = sub.session
                         if sub.is_suspended:
                             raise InvalidOperationException(
                                 'Your client has been suspended')
@@ -180,14 +217,20 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                             sub.restore_state()
 
         data['key'] = self.key
-        data['session'] = dict(
-            key=str(self.session.key),
-            is_started=self.session.is_started,
-            is_finished=self.session.is_finished
-            )
+        data['session'] = self.session.__dict__
         data['is_experimenter'] = self.is_experimenter
         self.is_initialized = True
         return data
+
+    def get_session(self, message):
+        return self.session
+
+    def get_group(self, message):
+        group = None
+        if self.session.is_started:
+            subject = self.application.get_subject(self.key)
+            group = self.application.get_group(self.session, subject.group)
+        return group
 
     def get_subject(self, message):
         subject = None
@@ -227,7 +270,8 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         if subject is None:
             subject = zook.Subject(self.session, key)
             self.application.set_subject(subject)
-        if 'name' in data:
+        if 'name' in data \
+                and (self.is_experimenter or not subject.is_initialized):
             name = data['name']
             if not name or not name.strip():
                 del self.application.subjects[key]
@@ -238,10 +282,9 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                 raise InvalidOperationException('Client name already in use')
             subject.name = name
         elif not subject.name:
-            del self.application.subjects[key]
             raise InvalidOperationException('Client name can not be empty')
-        if 'status' in data:
-            subject.status = data['status']
+        if 'my_provide' in data:
+            subject.my_provide = data['my_provide']
         subject.decide_state()
         return subject.to_dict()
 
@@ -288,3 +331,79 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             return True
         else:
             raise UnauthorizedOperationException()
+
+    def start_session(self, message):
+        self.check_experimenter()
+        self.application.start_session(self.session)
+        return self.session
+
+    def stop_session(self, message):
+        self.check_experimenter()
+        self.application.stop_session(self.session)
+        subjects = self.application.get_subjects_by_state('active')
+        for subject in subjects:
+            subject.set_state('waiting')
+            group = self.application.get_group(self.session, subject.group)
+            socket = self.application.get_socket(subject.key)
+            if socket is not None:
+                data = {
+                    'session': self.session,
+                    'group': group,
+                    'subject': subject
+                }
+                socket.send('continue_session', data)
+        return self.session.__dict__
+
+    def continue_session(self, message):
+        data = {}
+        self.clear_timer()
+        self.check_data(message)
+        self.set_subject(message)
+        subject = self.application.get_subject(self.key)
+        if self.session.is_started:
+            self.process_input()
+            self.application.proceed(self.session)
+            data['group'] = self.application.get_group(self.session, subject.group).__dict__
+        data['subject'] = subject.to_dict()
+        data['session'] = self.session.__dict__
+        return data
+
+    def set_timer(self, seconds, func, args=None):
+        self.timer_started_at = int(time.time() * 1000)
+        self.timer = threading.Timer(seconds, func, args)
+        self.timer.start()
+
+    def clear_timer(self):
+        if self.timer is not None:
+            self.timer.cancel()
+            self.timer_started_at = None
+
+    def input_timeout(self):
+        subject = self.application.get_subject(self.key)
+        subject.set_state('waiting')
+        self.application.proceed(self.session)
+        data = {}
+        data['group'] = self.application.get_group(self.session, subject.group).__dict__
+        data['subject'] = subject.to_dict()
+        data['session'] = self.session.__dict__
+        self.send('continue_session', data)
+
+    def process_input(self):
+        subject = self.application.get_subject(self.key)
+        group = self.application.get_group(self.session, subject.group)
+        if group.stage == 0:
+            if subject.my_provide is None:
+                raise InvalidOperationException(
+                    'A default value will be used for you'
+                    + ' unless you enter a valid number.')
+            elif re.match('^\d+(\.\d+){0,1}$', subject.my_provide) is None \
+                    or float(subject.my_provide) < 0 \
+                    or float(subject.my_provide) > 4 \
+                    or (
+                        float(subject.my_provide) - int(subject.my_provide) > 0
+                        and float(subject.my_provide) - int(subject.my_provide) != 0.5
+                        ):
+                raise InvalidOperationException(
+                    'The quantity must be at least 0,'
+                    + ' at most 4, and a multiple of 1/2.'
+                    )

@@ -30,15 +30,36 @@
                   </div>
                   <div class="clearfix"></div>
                 </div>
-                <div class="panel-body" ng-switch on="isInitialized">
+                <div class="panel-body" ng-switch on="subject.state_name">
 
-                  <div ng-switch-when="true">
+                  <div ng-switch-when="initial">
+                    <form role="form">
+                      <div class="form-group">
+                        <label class="control-label" for="txtClientName">Enter a name for this client</label>
+                        <input id="txtClientName" ng-model="subject.name" type="text" class="form-control">
+                      </div>
+                    </form>
+                    <div class="alert alert-danger" ng-show="showError">{{errorMessage}}</div>
+                  </div>
+
+                  <div ng-switch-when="waiting">
                     <wait></wait>
                   </div>
-                  <div ng-switch-when="false">
-                    <subject-initialize></subject-initialize>
-                  </div>
 
+                  <div ng-switch-when="active">
+                    <div ng-switch on="group.stage">
+                      <stage0 ng-switch-when="0"></stage0>
+                      <stage2 ng-switch-when="2"></stage2>
+                      <stage5 ng-switch-when="5"></stage5>
+                      <stage7 ng-switch-when="7"></stage7>
+                      <stage8 ng-switch-when="8"></stage8>
+                      <stage10 ng-switch-when="10"></stage10>
+                      <stage12 ng-switch-when="12"></stage12>
+                      <stage13 ng-switch-when="13"></stage13>
+                      <stage15 ng-switch-when="15"></stage15>
+                    </div>
+                  </div>
+                  
                   <div class="clearfix"></div>
                 </div>
                 <div class="panel-footer">
@@ -62,6 +83,8 @@
         </div><!-- /.container-fluid -->
       </div><!-- /.centered -->
     </div>
+
+    <message-box></message-box>
 
     <div class="modal {{instructionsVisible && 'show' || 'hide fade'}}">
       <div class="modal-dialog">
@@ -99,8 +122,9 @@
     <script src="scripts/services/log.js"></script>
     <script src="scripts/services/socket.js"></script>
     <script src="scripts/client/directives/wait.js"></script>
-    <script src="scripts/client/directives/subject-initialize.js"></script>
+    <script src="scripts/client/directives/stages.js"></script>
     <script src="scripts/directives/connection.js"></script>
+    <script src="scripts/directives/message-box.js"></script>
     <script src="scripts/client/controllers/main.js"></script>
     <!-- endbuild -->
     

@@ -1,0 +1,24 @@
+<table class="table table-condensed">
+  <tbody>
+    <tr class="active">
+      <td>Zook Quantity</td>
+      <td ng-repeat="quantity in range(0, 11)" class="text-center">{{quantity}}</td>
+    </tr>
+    <tr>
+      <td>Total Value</td>
+      <td ng-repeat="quantity in range(0, 11)" class="text-right">{{totalValue(quantity) | number:2}}</td>
+    </tr>
+    <tr>
+      <td>Incremental Value</td>
+      <td class="text-right">0.00</td>
+      <td ng-repeat="quantity in range(1, 11)" class="text-right">{{incrementalValue(quantity) | number:2}}</td>
+    </tr>
+  </tbody>
+</table>
+<p>For each quantity of Zook, the table above shows the value to you.  Other group members may have different values.</p>
+<p>The last row show the incremental value, how much more that quantity is worth to you than one unit less.</p>
+<p ng-if="session.phase == 0 && session.period == 1">For example, 3 units of Zook are worth <strong>{{subject.example_cost | currency}}</strong> more to you than 2 units.</p>
+<p>This period, Zook's  per-unit production cost is <strong>{{ session.cost | currency }}</strong>; you will pay that cost for each unit you provide.</p>
+<p>{{ (session.phase == 0 && session.period == 1) && 'As instructions explained, the' || 'The'}}  quantity of Zook produced will be the sum of the quantities each group member chooses to provide and pay for {{ (session.phase == 0 && session.period == 1) && '(adjusting for half-quantities)' || ''}}.</p>
+<p>At a <strong>{{session.cost | currency}}</strong> per-unit cost (<strong>{{session.cost/2 | currency}}</strong> per half-unit), type the quantity you will pay to provide. It must be one of <strong>0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4</strong>.</p>
+<input type="text" class="form-control" placeholder="Type here the quantity you will pay to provide" ng-model="subject.my_provide">

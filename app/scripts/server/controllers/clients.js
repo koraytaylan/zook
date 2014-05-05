@@ -62,9 +62,12 @@ app.controller('ClientsCtrl', [ '$scope', 'SocketService', function ($scope, soc
         $scope.getSubjects();
     });
 
-    $scope.$on('socket-receive', function (event, message) {
+    $scope.$on('socket-received', function (event, message) {
         if (message.type === 'set_subject'
-                || message.type === 'get_subject') {
+                || message.type === 'get_subject'
+                || message.type === 'start_session'
+                || message.type === 'stop_session'
+                || message.type === 'continue_session') {
             $scope.getSubjects();
         }
     });

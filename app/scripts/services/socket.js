@@ -3,16 +3,16 @@
 'use strict';
 
 app.factory('SocketService', ['$q', '$rootScope', 'LogService', function ($q, $rootScope, log) {
-    var service = {},
+    var socket = {},
         callbacks = {},
         lastId = 0,
         ws = null;
 
-    service.isOpen = false;
-    service.isInitializing = true;
-    service.isInitialized = false;
+    socket.isOpen = false;
+    socket.isInitializing = true;
+    socket.isInitialized = false;
 
-    service.send = function (type, message) {
+    socket.send = function (type, message) {
         lastId += 1;
         var defer = $q.defer(),
             request = {
@@ -31,32 +31,36 @@ app.factory('SocketService', ['$q', '$rootScope', 'LogService', function ($q, $r
         return defer.promise;
     };
 
-    service.initialize = function () {
+    socket.initialize = function () {
         var defer = $q.defer();
         ws = new WebSocket("ws://localhost:8080/socket");
-        service.isInitializing = true;
+        socket.isInitializing = true;
         ws.onopen = function () {
-            service.isOpen = true;
+            socket.isOpen = true;
             log.info("Socket: opened!");
-            service.send('initialize', localStorage.getItem('key')).then(function (message) {
-                service.isInitializing = false;
-                if (!message.isError) {
-                    var data = message.data;
-                    localStorage.setItem('key', data.key);
-                    service.isInitialized = true;
-                    defer.resolve(message);
-                    log.info("Socket: initialized");
-                    $rootScope.$broadcast('socket-initialized', message);
-                } else {
-                    ws.close();
-                    defer.reject(message);
-                }
-            });
+            socket
+                .send('initialize', localStorage.getItem('socket.key'))
+                .then(
+                    function (message) {
+                        socket.isInitializing = false;
+                        var data = message.data;
+                        localStorage.setItem('socket.key', data.key);
+                        socket.isInitialized = true;
+                        log.info("Socket: initialized");
+                        defer.resolve(message);
+                        $rootScope.$broadcast('socket-initialized', message);
+                    },
+                    function (message) {
+                        socket.isInitializing = false;
+                        ws.close();
+                        defer.reject(message);
+                    }
+                );
         };
 
         ws.onclose = function () {
-            service.isInitialized = false;
-            service.isOpen = false;
+            socket.isInitialized = false;
+            socket.isOpen = false;
             log.info("Socket: closed!");
             $rootScope.$broadcast('socket-closed');
         };
@@ -77,30 +81,33 @@ app.factory('SocketService', ['$q', '$rootScope', 'LogService', function ($q, $r
                     logMessage = 'Socket: message reply received ' + message.roundtrip + 'ms';
                     if (cb.type === message.type) {
                         log.success(logMessage, message);
+                        $rootScope.$apply(cb.defer.resolve(message));
                     } else {
                         message.isError = true;
                         log.error(logMessage, message);
+                        $rootScope.$apply(cb.defer.reject(message));
                     }
-                    $rootScope.$apply(cb.defer.resolve(message));
                     delete callbacks[message.id];
                 } else {
                     message.isReply = false;
                     log.info('Socket: message received', message);
-                    $rootScope.$broadcast('socket-receive', message);
                 }
+                $rootScope.$broadcast('socket-received', message);
             }
         };
 
         return defer.promise;
     };
 
-    service.close = function () {
+    socket.close = function () {
         ws.close();
     };
 
-    service.initialize();
+    socket.initialize().then(function (message) {
+        
+    });
 
-    window.socket = service;
+    window.socket = socket;
 
-    return service;
+    return socket;
 }]);

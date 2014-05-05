@@ -1,0 +1,21 @@
+<div class="modal {{isActive && 'show' || 'hide'}}">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" ng-click="close()">&times;</button>
+        <h4 class="modal-title">{{title}}</h4>
+      </div>
+      <div class="modal-body">
+        {{content}}
+      </div>
+      <div class="modal-footer" ng-switch on="mode">
+        <div ng-switch-default>
+          <button type="button" class="btn btn-primary" ng-disabled="isConnecting" ng-click="close()">
+            <span class="glyphicon glyphicon-ok"></span> Close
+          </button>
+        </div>
+      </div>
+    </div><!-- /.modal-content -->
+  </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+<div class="modal-backdrop fade in {{(isActive && isModal) && 'show' || 'hide'}}"></div>
