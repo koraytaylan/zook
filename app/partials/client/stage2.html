@@ -1,4 +1,4 @@
-<p>Your group's choices were: <strong ng-repeat-start="value in group.provides">{{value}}, </strong><strong ng-repeat-end>{{value}}</strong>.</p>
+<p>Your group's choices were: <strong ng-repeat-start="value in group.provides track by $index">{{value}}, </strong><strong ng-repeat-end>{{value}}</strong>.</p>
 <p>These sum to {{session.SumProvides[subject.group] | number:1}}; {{session.QReached[session.phase][session.period][subject.group]}} units are produced.</p>
 <ng-switch on="session.SumHalvers[subject.group]">
   <p ng-switch-when="1">One member's provision was reduced by 1/2 to an integer.</p>

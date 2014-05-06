@@ -208,7 +208,7 @@ module.exports = function (grunt) {
                 bg: true
             },
             server_dist: {
-                cmd: 'python src/main.py dist',
+                cmd: 'python3 src/main.py dist',
                 bg: true
             }
         }
