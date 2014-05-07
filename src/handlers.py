@@ -12,25 +12,44 @@ import threading
 import re
 
 
-def to_dict(obj, classkey=None):
-    if isinstance(obj, dict):
+def to_dict(obj, classkey=None, ignores=None):
+    if ignores is not None and obj in ignores:
+        return None
+    elif isinstance(obj, dict):
         data = {}
         for (k, v) in obj.items():
-            data[k] = to_dict(v, classkey)
+            data[k] = to_dict(v, classkey, ignores)
+        return data
+    elif isinstance(obj, list):
+        data = []
+        for v in obj:
+            data.append(to_dict(v, classkey, ignores))
         return data
     elif hasattr(obj, "_ast"):
         return to_dict(obj._ast())
-    #elif hasattr(obj, "__iter__"):
-    #    return [to_dict(v, classkey) for v in obj]
     elif hasattr(obj, "__dict__"):
-        data = dict([(key, to_dict(value, classkey))
+        igs = [obj]
+        if ignores is not None:
+            igs.extend(ignores)
+        data = dict([(key, to_dict(value, classkey, igs))
                     for key, value in obj.__dict__.items()
                     if not callable(value) and not key.startswith('_')])
         if classkey is not None and hasattr(obj, "__class__"):
             data[classkey] = obj.__class__.__name__
         return data
+    # elif hasattr(obj, "__iter__"):
+    #    return [to_dict(v, classkey, ignores) for v in obj]
     else:
         return obj
+
+
+if __name__ == "__main__":
+    s = zook.Session()
+    p = zook.Phase(s, 0)
+    pp = zook.Period(p, 0)
+    g = zook.Group(pp, 0)
+    ss = zook.Subject(s)
+    print(json.dumps(to_dict(ss)))
 
 
 class ClientHandler(tornado.web.RequestHandler):
@@ -80,7 +99,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             s = self.application.get_subject(self.key)
             if s is not None:
                 s.set_state('dropped')
-                self.notify('set_subject', s.to_dict())
+                self.notify('set_subject', s)
 
     def on_message(self, message):
         o = None
@@ -144,10 +163,11 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         m = dict(
             type=message_type,
             timestamp=int(time.time() * 1000),
-            data=to_dict(message)
+            data=message
         )
         if id is not None:
             m['id'] = id
+        m = to_dict(m)
         self.write_message(json.dumps(m))
 
     def notify(self, message_type, message, is_global=False):
@@ -227,9 +247,18 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
 
     def get_group(self, message):
         group = None
+        key = None
         if self.session.is_started:
-            subject = self.application.get_subject(self.key)
-            group = self.application.get_group(self.session, subject.group)
+            if self.is_experimenter:
+                self.check_data(message)
+                key = message['data']
+                period = self.application.get_current_period(self.session)
+                group = period.groups[key]
+            else:
+                subject = self.application.get_subject(self.key)
+                if 'data' in message and message['data'] != subject.group_key:
+                    raise InvalidOperationException()
+                group = subject.group
         return group
 
     def get_subject(self, message):
@@ -244,16 +273,13 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             if subject is None:
                 subject = zook.Subject(self.session, self.key)
                 self.application.set_subject(subject)
-        o = None
-        if subject is not None:
-            o = subject.to_dict()
-        return o
+        return subject
 
     def get_subjects(self, message):
         self.check_experimenter()
         ss = []
         for s in self.application.subjects.values():
-            ss.append(s.to_dict())
+            ss.append(s)
         return ss
 
     def set_subject(self, message):
@@ -261,6 +287,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         key = None
         if self.is_experimenter:
             self.check_data(message, ['key'])
+            data = message['data']
             key = data['key']
         else:
             self.check_data(message)
@@ -286,7 +313,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         if 'my_provide' in data:
             subject.my_provide = data['my_provide']
         subject.decide_state()
-        return subject.to_dict()
+        return subject
 
     def delete_subject(self, message):
         self.check_data(message)
@@ -355,18 +382,14 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         return self.session.__dict__
 
     def continue_session(self, message):
-        data = {}
-        self.clear_timer()
         self.check_data(message)
+        self.clear_timer()
         self.set_subject(message)
         subject = self.application.get_subject(self.key)
         if self.session.is_started:
             self.process_input()
             self.application.proceed(self.session)
-            data['group'] = self.application.get_group(self.session, subject.group).__dict__
-        data['subject'] = subject.to_dict()
-        data['session'] = self.session.__dict__
-        return data
+        return subject
 
     def set_timer(self, seconds, func, args=None):
         self.timer_started_at = int(time.time() * 1000)
@@ -382,15 +405,11 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         subject = self.application.get_subject(self.key)
         subject.set_state('waiting')
         self.application.proceed(self.session)
-        data = {}
-        data['group'] = self.application.get_group(self.session, subject.group).__dict__
-        data['subject'] = subject.to_dict()
-        data['session'] = self.session.__dict__
-        self.send('continue_session', data)
+        self.send('continue_session', subject)
 
     def process_input(self):
         subject = self.application.get_subject(self.key)
-        group = self.application.get_group(self.session, subject.group)
+        group = subject.group
         if group.stage == 0:
             if subject.my_provide is None:
                 raise InvalidOperationException(
