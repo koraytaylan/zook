@@ -13,6 +13,7 @@ class Session(object):
     def __init__(self):
         super(Session, self).__init__()
         self.key = str(uuid.uuid4())
+        self.subjects = {}
         self.phases = {}
         self.phase = 0
         self.period = 0
@@ -30,7 +31,7 @@ class Session(object):
 
         self.time_for_input = 0
         self.time_for_result = 0
-        self.time_for_preperation = 0
+        self.time_for_preparation = 0
 
         # Group size
         self.group_size = 6
@@ -172,19 +173,26 @@ class Session(object):
 
 class Phase(object):
     """docstring for Phase"""
-    def __init__(self, name):
+    def __init__(self, session, key):
         super(Phase, self).__init__()
-        self.name = name
+        self.session = session
+        session.phases[key] = self
+        self.key = key
         self.periods = {}
-        self.period = -1
+        self.profits = {}
+        self.balances = {}
 
 
 class Period(object):
     """docstring for Period"""
-    def __init__(self, name):
+    def __init__(self, phase, key):
         super(Period, self).__init__()
-        self.name = name
+        self.phase = phase
+        phase.periods[key] = self
+        self.key = key
         self.groups = {}
+        self.profits = {}
+        self.balances = {}
 
 
 class Group(object):
@@ -210,11 +218,14 @@ class Group(object):
         15: 'Result'
     }
 
-    def __init__(self, name):
+    def __init__(self, period, key):
         super(Group, self).__init__()
-        self.name = name
+        self.period = period
+        period.groups[key] = self
+        self.key = key
 
         self.stage = -1
+        self.stage_name = ''
         self.direction = 0
         self.quantity_initial = 0
         self.quantity_reached = 0
@@ -268,16 +279,19 @@ class Subject(object):
         self.session = session
         if key is None:
             key = str(uuid.uuid4())
+        self.session.subjects[key] = self
         self.key = key
+        self.session_key = key
         self.name = None
         self.previous_state = 1
         self.state = 1
-        self.state_name = None
+        self.state_name = Subject.states[self.state]
         self.previous_status = 0
         self.status = 0
         self.is_suspended = False
         self.is_initialized = False
-        self.group = 0
+        self.group = None
+        self.group_key = 0
         self.role = 0
 
         self.my_cost = 0
@@ -312,7 +326,7 @@ class Subject(object):
     def set_state(self, name):
         self.previous_state = self.state
         self.state = self.get_state_by_name(name)
-        self.state_name = name 
+        self.state_name = name
         return self.state
 
     @staticmethod
@@ -333,7 +347,8 @@ class Subject(object):
             self.set_state('waiting')
 
     def restore_state(self):
-        self.state = self.previous_state
+        state = Subject.states[self.previous_state]
+        self.set_state(state)
 
     def is_passive(self):
         return int(self.state / 100) == 0
@@ -413,7 +428,10 @@ class Application(tornado.web.Application):
 
     def get_group(self, session, group):
         period = self.get_current_period(session)
-        return period.groups[group]
+        if group in period.groups:
+            return period.groups[group]
+        else:
+            return None
 
     def get_subject(self, key):
         ss = self.subjects.values()
@@ -427,7 +445,12 @@ class Application(tornado.web.Application):
 
     def get_subjects_by_group(self, group):
         ss = self.subjects.values()
-        ss = list(s for s in ss if s.group == group)
+        ss = list(s for s in ss if s.group_key == group)
+        return ss
+
+    def get_subjects_by_active(self, session):
+        ss = self.subjects.values()
+        ss = list(s for s in ss if s.session == session and s.is_active())
         return ss
 
     def set_subject(self, subject):
@@ -457,15 +480,21 @@ class Application(tornado.web.Application):
         session.is_finished = True
 
     def start_phase(self, session):
-        phase = Phase(session.phase)
+        ss = self.get_subjects_by_active(session)
+        if session.phase > 0:
+            phase = self.get_current_phase(session)
+            for s in ss:
+                phase.profits[s.key] = s.current_balance - phase.balances[s.key]
+        phase = Phase(session, session.phase)
+        for s in ss:
+            phase.balances[s.key] = s.current_balance
         session.phases[session.phase] = phase
         session.period = 0
         self.start_period(session)
 
     def start_period(self, session):
         phase = session.phases[session.phase]
-        period = Period(session.period)
-        phase.periods[session.period] = period
+        period = Period(phase, session.period)
         roles = list(range(session.group_size))
         random.shuffle(roles)
         ss = self.subjects.values()
@@ -475,7 +504,10 @@ class Application(tornado.web.Application):
         for i, s in enumerate(ss):
             if i > 0 and i % session.group_size == 0:
                 group += 1
-            s.group = group
+            s.group_key = group
+            if group not in period.groups:
+                g = Group(period, group)
+            s.group = period.groups[group]
             s.role = roles[i % session.group_size]
             s.period_profit = 0
             if session.phase == 0 and session.period == 1:
@@ -491,10 +523,10 @@ class Application(tornado.web.Application):
             session.cost = session.cost_high
         session.input_step_max = session.cost / session.input_step_size
         session.input_step_time = 3
-        session.time_for_preperation = 3
+        session.time_for_preparation = 3
         if session.period == 1:
             session.input_step_time = 5
-            session.time_for_preperation = 5
+            session.time_for_preparation = 5
             session.time_for_input = 100
             session.time_for_result = 125
         elif session.period == 2:
@@ -504,18 +536,18 @@ class Application(tornado.web.Application):
             session.time_for_input = 75
             session.time_for_result = 65
 
-        for i in range(math.ceil(len(ss) / session.group_size)):
-            g = Group(i)
-            period.groups[i] = g
+        for k, g in period.groups.items():
             if session.phase > 0:
                 g.stage = 0
             else:
                 g.stage = 4
-            self.start_stage(session, i)
+            g.stage_name = Group.stages[g.stage]
+            self.start_stage(session, k)
 
     def start_stage(self, session, group):
         gr = group
-        g = self.get_group(session, gr)
+        period = self.get_current_period(session)
+        g = period.groups[gr]
         g.label_continue = 'Continue'
         ph = session.phase
         pe = session.period
@@ -600,7 +632,7 @@ class Application(tornado.web.Application):
             if g.direction == -1:
                 return self.next_stage(session, group)
             for i, s in enumerate(ss):
-                s.time_left = session.time_for_preperation
+                s.time_left = session.time_for_preparation
         elif g.stage == 8:
             if g.direction == -1:
                 return self.next_stage(session, group)
@@ -628,14 +660,14 @@ class Application(tornado.web.Application):
             if g.direction != 0:
                 return self.next_stage(session, group)
             for i, s in enumerate(ss):
-                s.time_left = session.time_for_preperation + 2
+                s.time_left = session.time_for_preparation + 2
         elif g.stage == 11:
             return self.next_stage(session, group)
         elif g.stage == 12:
             if g.direction == 1:
                 return self.next_stage(session, group)
             for i, s in enumerate(ss):
-                s.time_left = session.time_for_preperation
+                s.time_left = session.time_for_preparation
         elif g.stage == 13:
             if g.direction == 1:
                 return self.next_stage(session, group)
@@ -695,16 +727,10 @@ class Application(tornado.web.Application):
             s.set_state('active')
             socket = self.get_socket(s.key)
             if socket is not None:
-                data = {
-                    'session': session,
-                    'group': g,
-                    'subject': s
-                }
                 if s.time_left > 0:
                     socket.timer = threading.Timer(s.time_left, socket.input_timeout)
                     socket.timer.start()
-                socket.send('continue_session', data)
-
+                socket.send('continue_session', s)
 
     def next_stage(self, session, group):
         g = self.get_group(session, group)
@@ -721,7 +747,7 @@ class Application(tornado.web.Application):
             self.next_phase(session)
 
     def next_phase(self, session):
-        if (session.phase < 3):
+        if session.phase < 3:
             session.phase += 1
             session.start_phase(session)
         else:
@@ -734,9 +760,9 @@ class Application(tornado.web.Application):
         for (i, group) in period.groups.items():
             subjects = self.get_subjects_by_group(i)
             if len(list(s for s in subjects if Subject.states[s.state] == 'waiting')) == len(subjects):
-                waiting_groups.append(group.name)
+                waiting_groups.append(group.key)
                 if group.stage == 15:
-                    finished_groups.append(group.name)
+                    finished_groups.append(group.key)
         if len(finished_groups) == len(period.groups):
             self.next_period(session)
         elif len(waiting_groups) > 0:
