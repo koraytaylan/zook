@@ -1,25 +1,27 @@
 <table class="table table-hover table-striped">
   <thead>
     <th><a ng-click="predicate = 'name'; reverse=!reverse">Name</a></th>
-    <th width="75" class="text-center"><a ng-click="predicate = 'name'; reverse=!reverse">Group</a></th>
-    <th width="75" class="text-center"><a ng-click="predicate = 'name'; reverse=!reverse">Role</a></th>
-    <th width="75"><a ng-click="predicate = 'name'; reverse=!reverse">State</a></th>
-    <th width="75"><a ng-click="predicate = 'name'; reverse=!reverse">Stage</a></th>
+    <th width="75" class="text-center"><a ng-click="predicate = 'current_balance'; reverse=!reverse">Balance</a></th>
+    <th width="75" class="text-center"><a ng-click="predicate = 'group_key'; reverse=!reverse">Group</a></th>
+    <th width="75" class="text-center"><a ng-click="predicate = 'role'; reverse=!reverse">Role</a></th>
+    <th width="75"><a ng-click="predicate = 'state'; reverse=!reverse">State</a></th>
+    <th width="75"><a ng-click="predicate = 'group.stage'; reverse=!reverse">Stage</a></th>
     <th width="75"><a ng-click="predicate = 'is_suspended'; reverse=!reverse">Suspended</a></th>
     <th width="50"></th>
   </thead>
   <tbody>
     <tr ng-repeat="s in subjects | orderBy:predicate:reverse track by s.key">
       <td>{{s.name}}</td>
-      <td class="text-center">{{s.group}}</td>
+      <td>{{s.current_balance | currency}}</td>
+      <td class="text-center">{{s.group.key}}</td>
       <td class="text-center">{{s.role}}</td>
       <td>
         <span class="label" ng-class="{'label-default': Math.floor(s.state/100)==0, 'label-success': Math.floor(s.state/100)==1} ">{{s.state_name}}</span>
       </td>
+      <td>{{s.group.stage_name}}</td>
       <td class="text-center">
         <span class="glyphicon glyphicon-ok" ng-if="s.is_suspended"></span>
       </td>
-      <td>{{s.stage_name}}</td>
       <td>
       	<button type="button" class="btn btn-danger btn-xs" ng-click="suspend(s.key)">
           <span class="glyphicon glyphicon-remove"></span>
