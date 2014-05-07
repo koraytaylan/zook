@@ -79,11 +79,8 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', '$interval
         socket
             .send('continue_session', $scope.subject)
             .then(
-                function (message) {
-                    var data = message.data;
+                function () {
                     timerClear();
-                    $scope.session = $.extend($scope.session, data.session);
-                    $scope.subject = $.extend($scope.subject, data.subject);
                 },
                 function (message) {
                     $scope.isWaiting = false;
@@ -105,67 +102,48 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', '$interval
 
     $scope.$on('socket-initialized', function (event, message) {
         $scope.session = $.extend($scope.session, message.data.session);
-        socket
-            .send('get_subject')
-            .then(function () {
-                socket
-                    .send('get_session')
-                    .then(function () {
-                        socket
-                            .send('get_group');
-                    });
-            });
+        socket.send('get_subject');
     });
 
     $scope.$on('socket-received', function (event, message) {
         if (message.type === 'get_subject'
-                || message.type === 'set_subject') {
-            var s = message.data;
-            $scope.subject = $.extend($scope.subject, s);
-        } else if (message.type === 'get_session') {
-            $scope.session = $.extend($scope.session, message.data);
-        } else if (message.type === 'get_group') {
-            $scope.group = $.extend($scope.group, message.data);
-        } else if (message.type === 'continue_session') {
+                || message.type === 'set_subject'
+                || message.type === 'continue_session') {
             var data = message.data;
-            $scope.subject = $.extend($scope.subject, data.subject);
-            $scope.session = $.extend($scope.session, data.session);
-            $scope.group = $.extend($scope.group, data.group);
-        }
-        switch ($scope.subject.state_name) {
-        case 'initial':
-            $scope.isInitialized = false;
-            $scope.isWaiting = false;
-            break;
-        case 'waiting':
-            $scope.isInitialized = true;
-            $scope.isWaiting = true;
-            timerStop();
-            break;
-        case 'active':
-            //console.log('active');
-            $scope.isInitialized = true;
-            $scope.isWaiting = false;
-            if ($scope.subject.time_left > 0) {
-                $scope.answerCountdown = $scope.subject.time_left;
-                timerClear();
-                timerStart();
+            $scope.subject = $.extend($scope.subject, data);
+            $scope.session = $scope.subject.session;
+            $scope.group = $scope.subject.group;
+
+            switch ($scope.subject.state_name) {
+            case 'initial':
+                $scope.isInitialized = false;
+                $scope.isWaiting = false;
+                break;
+            case 'waiting':
+                $scope.isInitialized = true;
+                $scope.isWaiting = true;
+                timerStop();
+                break;
+            case 'active':
+                //console.log('active');
+                $scope.isInitialized = true;
+                $scope.isWaiting = false;
+                if ($scope.subject.time_left > 0) {
+                    $scope.answerCountdown = $scope.subject.time_left;
+                    timerClear();
+                    timerStart();
+                }
+                break;
+            default:
+                $scope.isWaiting = true;
+                break;
             }
-            break;
-        default:
-            $scope.isWaiting = true;
-            break;
+            $scope.$apply();
         }
-        $scope.$apply();
     });
 
     $scope.$on('socket-closed', function () {
         $scope.isWaiting = false;
-    });
-
-    $scope.$watch('subject', function (newValue, oldValue) {
-        console.log('watch subject', $scope.subject);
-        
     });
 
     $scope.$watch('group.stage', function () {
