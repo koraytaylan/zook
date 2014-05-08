@@ -145,6 +145,8 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                 reply = self.stop_session(o)
             elif message_type == 'continue_session':
                 reply = self.continue_session(o)
+            elif message_type == 'skip_phase':
+                reply = self.skip_phase(o)
             else:
                 raise InvalidOperationException('Unknown message type')
             self.send(message_type, reply, id)
@@ -312,6 +314,10 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             raise InvalidOperationException('Client name can not be empty')
         if 'my_provide' in data:
             subject.my_provide = data['my_provide']
+        if 'my_bid' in data:
+            subject.my_bid = data['my_bid']
+        if 'my_ask' in data:
+            subject.my_ask = data['my_ask']
         subject.decide_state()
         return subject
 
@@ -407,10 +413,16 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                     or float(subject.my_provide) < 0 \
                     or float(subject.my_provide) > 4 \
                     or (
-                        float(subject.my_provide) - int(subject.my_provide) > 0
-                        and float(subject.my_provide) - int(subject.my_provide) != 0.5
+                        float(subject.my_provide) - float(subject.my_provide) > 0
+                        and float(subject.my_provide) - float(subject.my_provide) != 0.5
                         ):
                 raise InvalidOperationException(
                     'The quantity must be at least 0,'
                     + ' at most 4, and a multiple of 1/2.'
                     )
+
+    def skip_phase(self, message):
+        self.check_experimenter()
+        if self.session.is_started:
+            self.session.phase.is_skipped = True
+        return True

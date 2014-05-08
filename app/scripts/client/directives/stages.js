@@ -20,14 +20,14 @@ app.directive('stage0', [ function () {
             $scope.totalValue = function (quatity) {
                 var s = $scope.session,
                     vs = s.AValues,
-                    ps = s.AValuesParamSets[s.phase][s.period];
+                    ps = s.AValuesParamSets[s.phase.key][s.period.key];
                 return vs[ps][$scope.subject.role][quatity];
             };
 
             $scope.incrementalValue = function (quantity) {
                 var s = $scope.session,
                     vus = s.AValueUp,
-                    ps = s.AValuesParamSets[s.phase][s.period];
+                    ps = s.AValuesParamSets[s.phase.key][s.period.key];
                 return vus[ps][$scope.subject.role][quantity - 1];
             };
         }
@@ -73,6 +73,13 @@ app.directive('stage8', [ '$timeout', function ($timeout) {
             /*$timeout(function () {
                 $scope.subject.price += $scope.session.input_step_size;
             }, $scope.session.input_step_time * 1000);*/
+            $scope.getBid = function () {
+                if ($scope.subject.my_bid < 0) {
+                    return 0;
+                }
+                return $scope.subject.my_bid;
+            };
+
             $scope.startPriceTimer();
         }
     };
@@ -111,6 +118,12 @@ app.directive('stage13', [ '$interval', function ($interval) {
             $scope.$on('$destroy', function () {
                 $interval.cancel($scope.timer);
             });*/
+            $scope.getAsk = function () {
+                if ($scope.subject.my_ask < 0) {
+                    return 0;
+                }
+                return $scope.subject.my_ask;
+            };
 
             $scope.startPriceTimer();
         }

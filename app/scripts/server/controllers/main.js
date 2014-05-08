@@ -42,4 +42,9 @@ app.controller('MainCtrl', [ '$scope', '$location', 'SocketService', function ($
                 $scope.session = $.extend($scope.session, message.data);
             });
     };
+
+    $scope.skipPhase = function () {
+        socket
+            .send('skip_phase');
+    };
 }]);

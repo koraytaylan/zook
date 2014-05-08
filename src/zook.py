@@ -180,6 +180,15 @@ class Session(object):
         ss = list(s for s in ss if s.group_key == group)
         return ss
 
+    def next_phase(self):
+        if self.phase is not None:
+            self.phase.finish()
+        if self.phase.key < 3:
+            p = Phase(self, self.phase.key + 1)
+            p.start()
+        else:
+            self.finish()
+
 
 class Phase(object):
     """docstring for Phase"""
@@ -191,6 +200,7 @@ class Phase(object):
         self.periods = {}
         self.profits = {}
         self.balances = {}
+        self.is_skipped = False
 
     def start(self):
         ss = self.session.get_subjects_by_active()
@@ -210,8 +220,16 @@ class Phase(object):
             self.profits[s.key] = s.current_balance - self.balances[s.key]
 
     def next_period(self):
-        p = Period(self, self.session.period.key + 1)
-        p.start()
+        if self.session.period is not None:
+            self.session.period.finish()
+        if self.is_skipped:
+            self.session.next_phase()
+        elif (self.session.phase.key == 0 and self.session.period.key < 12) \
+                or (self.session.phase.key > 0 and self.session.period.key < 24):
+            p = Period(self, self.session.period.key + 1)
+            p.start()
+        else:
+            self.session.next_phase()
 
 
 class Period(object):
@@ -304,7 +322,7 @@ class Period(object):
                 s.time_left = session.time_for_input
                 s.example_cost = session.AValueUp[ph][s.role][2]
                 defp = 0
-                while session.AValueUp[ph][s.role][defp] > s.cost / 2:
+                while session.AValueUp[ph][s.role][defp] > period.cost / 2:
                     defp += 1
                 s.default_provide = defp
                 s.my_provide = None
@@ -313,9 +331,9 @@ class Period(object):
             for i, s in enumerate(ss):  # Iterating over subjects
                 if s.my_provide is None:
                     s.my_provide = s.default_provide
-            g.provides = list(s.my_provide for s in ss)
+            g.provides = list(float(s.my_provide) for s in ss)
             g.sum_provides = sum(g.provides)
-            g.sum_halvers = len(s for s in ss if s.my_provide is not None and float(s.my_provide) - int(s.my_provide) > 0)
+            g.sum_halvers = len(list(s for s in ss if s.my_provide is not None and float(s.my_provide) - float(s.my_provide) > 0))
             g.quantity_reached = min(session.quantity_max, g.sum_provides)
             g.some_refund = 0
             if g.sum_halvers == 1 \
@@ -333,7 +351,7 @@ class Period(object):
                     g.direction = -1
             for i, s in enumerate(ss):  # Iterating over subjects
                 s.my_cost_unit = s.my_provide
-                not_integer = float(s.my_provide) - int(s.my_provide) > 0
+                not_integer = float(s.my_provide) - float(s.my_provide) > 0
                 if not_integer and g.some_refund == 1:
                     s.my_cost_unit = s.my_provide - 0.5 / g.sum_halvers
                 s.my_cost = period.cost * s.my_cost_unit
@@ -464,6 +482,7 @@ class Period(object):
                 if ph == 2 or pe % 2 == 0:
                     s.profit = s.tent_profit + s.aft_profit
                 s.total_profit += s.aft_profit
+                s.current_balance += s.profit
 
 
 class Group(object):
@@ -521,6 +540,10 @@ class Group(object):
 
         self.coin_flip = 0
         self.outcome = 0
+
+    def set_stage(self, stage):
+        self.stage = stage
+        self.stage_name = Group.stages[stage]
 
 
 class Subject(object):
@@ -746,26 +769,6 @@ class Application(tornado.web.Application):
         g = self.get_group(session, group)
         if g.stage < 15:
             session.period.start_stage(g, g.stage + 1)
-        self.continue_session(session, group)
-
-    def next_period(self, session):
-        if session.period is not None:
-            session.period.finish()
-        if (session.phase.key == 0 and session.period.key < 12) \
-                or (session.phase.key > 0 and session.period.key < 24):
-            p = Period(session.phase, session.period.key + 1)
-            p.start()
-        else:
-            self.next_phase(session)
-
-    def next_phase(self, session):
-        if session.phase is not None:
-            session.phase.finish()
-        if session.phase.key < 3:
-            p = zook.Phase(session, session.phase.key + 1)
-            p.start()
-        else:
-            self.finish_session(session)
 
     def proceed(self, session):
         period = self.get_current_period(session)
@@ -778,7 +781,9 @@ class Application(tornado.web.Application):
                 if group.stage == 15:
                     finished_groups.append(group.key)
         if len(finished_groups) == len(period.groups):
-            self.next_period(session)
+            session.phase.next_period()
+            self.continue_session(session)
         elif len(waiting_groups) > 0:
             for group in waiting_groups:
                 self.next_stage(session, group)
+                self.continue_session(session, group)

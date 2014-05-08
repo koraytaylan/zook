@@ -43,6 +43,11 @@
                 <span class="glyphicon glyphicon-stop"></span> Stop
               </button>
             </div>
+            <div class="btn-group">
+              <button type="button" class="btn btn-primary" ng-click="skipPhase()" ng-disabled="!session.is_started">
+                <span class="glyphicon glyphicon-forward"></span> Skip phase
+              </button>
+            </div>
           </form>
           <ul class="nav navbar-nav navbar-right">
             <li>Phase: {{session.phase.key}}</li>
