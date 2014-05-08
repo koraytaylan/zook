@@ -7,6 +7,20 @@ import threading
 import math
 
 
+def roundup(x, y):
+    h = y
+    if x > y:
+        for i in range(2, 100):
+            z = i * round(y, 5)
+            if x <= z:
+                return round(z, 5)
+                break
+    if x < h:
+        return round(h, 5)
+    if x == h:
+        return round(h, 5)
+
+
 class Session(object):
     """docstring for Session"""
 
@@ -22,7 +36,6 @@ class Session(object):
         self.is_finished = False
         self.is_all_ready = False
 
-        self.cost = 0
         self.cost_low = 3.0
         self.cost_high = 5.5
         self.quantity_max = 10  # Maximum feasible quantity
@@ -138,37 +151,34 @@ class Session(object):
                 rs.append(qs)
             self.AValueUp.append(rs)
 
-        # self.Provides = self.generate_4_dimensional_list()
-        # self.MyCosts = self.generate_4_dimensional_list()
-        # self.TentProfits = self.generate_4_dimensional_list()
-        # self.Bids = self.generate_4_dimensional_list()
-        # self.Asks = self.generate_4_dimensional_list()
+    def start(self):
+        self.is_started = True
+        self.is_finished = False
+        for (i, s) in self.subjects.items():
+            s.set_state('active')
+        self.phase = Phase(self, 0)
+        self.phase.start()
 
-        self.QReached = \
-            [  # Initializing a three dimensional array [phase][period][group]
-                4 * [
-                    24 * [  # 24 Periods of Phase 1, 2, 3
-                        self.group_size * [0]  # 6 groups
-                    ]
-                ]
-            ]
+    def stop(self):
+        self.is_started = False
+        self.is_finished = False
+        self.phase = None
+        self.period = None
+        for (i, s) in self.subjects.items():
+            s.set_state('waiting')
 
-        self.NotIntegers = [  # Initializing a two dimensional array [group][role]
-            self.group_size * [  # 6 groups
-                self.group_size * [False]  # 6 roles
-            ]
-        ]
+    def finish(self):
+        self.is_finished = True
 
-    def generate_4_dimensional_list(self):
-        return [  # Initializing a four dimensional list [phase, period, group, role]
-            4 * [
-                24 * [  # 24 Periods of Phase 1, 2, 3
-                    self.group_size * [  # 6 groups
-                        self.group_size * [0]  # 6 roles
-                    ]
-                ]
-            ]
-        ]
+    def get_subjects_by_active(self):
+        ss = self.subjects.values()
+        ss = list(s for s in ss if s.session == self and s.is_active())
+        return ss
+
+    def get_subjects_by_group(self, group):
+        ss = self.subjects.values()
+        ss = list(s for s in ss if s.group_key == group)
+        return ss
 
 
 class Phase(object):
@@ -182,6 +192,27 @@ class Phase(object):
         self.profits = {}
         self.balances = {}
 
+    def start(self):
+        ss = self.session.get_subjects_by_active()
+        for s in ss:
+            self.balances[s.key] = s.current_balance
+            self.phase_profit = 0
+            if self.key == 0:
+                s.total_profit = 0
+                s.current_balance = self.session.starting_balance
+        self.session.phase = self
+        p = Period(self, 0)
+        p.start()
+
+    def finish(self):
+        ss = self.session.get_subjects_by_active()
+        for s in ss:
+            self.profits[s.key] = s.current_balance - self.balances[s.key]
+
+    def next_period(self):
+        p = Period(self, self.session.period.key + 1)
+        p.start()
+
 
 class Period(object):
     """docstring for Period"""
@@ -193,6 +224,246 @@ class Period(object):
         self.groups = {}
         self.profits = {}
         self.balances = {}
+        self.cost = 0
+
+    def start(self):
+        session = self.phase.session
+        ss = session.get_subjects_by_active()
+        roles = list(range(session.group_size))
+        random.shuffle(roles)
+        random.shuffle(ss)
+        group = 0
+        for i, s in enumerate(ss):
+            self.balances[s.key] = s.current_balance
+            if i > 0 and i % session.group_size == 0:
+                group += 1
+            s.group_key = group
+            if group not in self.groups:
+                g = Group(self, group)
+            s.group = self.groups[group]
+            s.role = roles[i % session.group_size]
+            s.period_profit = 0
+
+        ps = session.AValuesParamSets[self.phase.key][self.key]
+        if ps < 2:
+            self.cost = session.cost_low
+        else:
+            self.cost = session.cost_high
+        session.input_step_max = self.cost / session.input_step_size
+        session.input_step_time = 3
+        session.time_for_preparation = 3
+        if self.key == 1:
+            session.input_step_time = 5
+            session.time_for_preparation = 5
+            session.time_for_input = 100
+            session.time_for_result = 125
+        elif self.key == 2:
+            session.time_for_input = 85
+            session.time_for_result = 85
+        else:
+            session.time_for_input = 75
+            session.time_for_result = 65
+
+        session.period = self
+        for k, g in self.groups.items():
+            if self.phase.key > 0:
+                g.stage = 0
+            else:
+                g.stage = 4
+            g.stage_name = Group.stages[g.stage]
+            self.start_stage(g, g.stage)
+
+    def finish(self):
+        ss = self.phase.session.get_subjects_by_active()
+        for s in ss:
+            self.profits[s.key] = s.current_balance - self.balances[s.key]
+
+    def next_stage(self, group):
+        if (group.stage < 15):
+            group.stage += 1
+        self.start_stage(group, group.stage)
+
+    def start_stage(self, group, stage):
+        session = self.phase.session
+        period = session.period
+        gr = group.key
+        g = group
+        g.stage = stage
+        g.label_continue = 'Continue'
+        ph = session.phase.key
+        pe = self.key
+        ss = session.get_subjects_by_group(gr)
+        ss = list(s for s in ss if s.session == session and s.is_active())
+        for i, s in enumerate(ss):
+            s.is_participating = True
+            s.time_left = 0
+            s.set_state('active')
+
+        if g.stage == 0:
+            for i, s in enumerate(ss):
+                s.time_left = session.time_for_input
+                s.example_cost = session.AValueUp[ph][s.role][2]
+                defp = 0
+                while session.AValueUp[ph][s.role][defp] > s.cost / 2:
+                    defp += 1
+                s.default_provide = defp
+                s.my_provide = None
+                s.time_left = session.time_for_input
+        elif g.stage == 1:
+            for i, s in enumerate(ss):  # Iterating over subjects
+                if s.my_provide is None:
+                    s.my_provide = s.default_provide
+            g.provides = list(s.my_provide for s in ss)
+            g.sum_provides = sum(g.provides)
+            g.sum_halvers = len(s for s in ss if s.my_provide is not None and float(s.my_provide) - int(s.my_provide) > 0)
+            g.quantity_reached = min(session.quantity_max, g.sum_provides)
+            g.some_refund = 0
+            if g.sum_halvers == 1 \
+                or g.sum_halvers == 3 \
+                    or g.sum_halvers == 5:
+                g.some_refund = 1
+            if (ph > 1):
+                g.quantity_initial = g.quantity_reached
+                g.quantity_up = s.quantity_initial + 1
+                g.quantity_down = s.quantity_initial - 1
+                g.direction = 0
+                if g.quantity_down == -1:
+                    g.direction = 1
+                elif s.quantity_up == 11:
+                    g.direction = -1
+            for i, s in enumerate(ss):  # Iterating over subjects
+                s.my_cost_unit = s.my_provide
+                not_integer = float(s.my_provide) - int(s.my_provide) > 0
+                if not_integer and g.some_refund == 1:
+                    s.my_cost_unit = s.my_provide - 0.5 / g.sum_halvers
+                s.my_cost = period.cost * s.my_cost_unit
+                s.tent_profit = session.AValues[session.AValuesParamSets[ph][pe], s.role, g.quantity_reached] - s.my_cost
+                s.profit = s.tent_profit
+                s.total_profit += s.profit
+                s.current_balance += s.profit
+            return self.next_stage(g)
+        elif g.stage == 2:
+            for i, s in enumerate(ss):
+                s.time_left = session.time_for_result
+        elif g.stage == 3:
+            if ph == 1 or pe % 2 != 0:
+                for i, s in enumerate(ss):
+                    if s.current_balance < -session.maximum_loss:
+                        s.is_suspended = True
+                        s.set_status('robot')
+                    elif s.current_balance < 0:
+                        s.set_status('losing')
+                self.phase.next_period()
+            else:
+                self.next_stage(g)
+            return
+        elif g.stage == 4:
+            for i, s in enumerate(ss):
+                if ph == 0:
+                    g.quantity_initial = session.AInitQ[pe]
+                    g.direction = session.ADirectionPhase1[pe]
+                    g.quantity_up = g.quantity_initial + 1
+                    g.quantity_down = g.quantity_initial - 1
+                s.value_up = session.AValueUp[session.AValuesParamSets[ph][pe]][s.role][g.quantity_initial]
+                s.value_down = session.AValueUp[session.AValuesParamSets[ph][pe]][s.role][g.quantity_down]
+            g.stage = 5
+        elif g.stage == 6:
+            return self.next_stage(g)
+        elif g.stage == 7:
+            if g.direction == -1:
+                return self.next_stage(g)
+            for i, s in enumerate(ss):
+                s.time_left = session.time_for_preparation
+        elif g.stage == 8:
+            if g.direction == -1:
+                return self.next_stage(g)
+            for i, s in enumerate(ss):
+                s.my_bid = -1
+                s.price = 0
+                s.time_left = session.input_step_max * session.input_step_time
+            g.label_continue = 'Accept'
+        elif g.stage == 9:
+            if g.direction == -1:
+                return self.next_stage(g)
+            default_bid = min(period.cost, roundup(s.value_up, 0.5))
+            for i, s in enumerate(ss):
+                s.time_left = 1
+                if s.my_bid == -1:
+                    s.my_bid = default_bid
+                    s.time_left = 7
+            g.bids = list(s.my_bid for s in ss)
+            g.sum_bids = sum(g.bids)
+            g.up_covered = 0
+            if g.sum_bids >= period.cost:
+                g.up_covered = 1
+            return self.next_stage(g)
+        elif g.stage == 10:
+            if g.direction != 0:
+                return self.next_stage(g)
+            for i, s in enumerate(ss):
+                s.time_left = session.time_for_preparation + 2
+        elif g.stage == 11:
+            return self.next_stage(g)
+        elif g.stage == 12:
+            if g.direction == 1:
+                return self.next_stage(g)
+            for i, s in enumerate(ss):
+                s.time_left = session.time_for_preparation
+        elif g.stage == 13:
+            if g.direction == 1:
+                return self.next_stage(g)
+            for i, s in enumerate(ss):
+                s.my_ask = -1
+                s.price = 0
+                s.time_left = session.input_step_max * session.input_step_time
+            g.label_continue = 'Accept'
+        elif g.stage == 14:
+            if g.direction == 1:
+                return self.next_stage(g)
+            default_ask = period.cost
+            for i, s in enumerate(ss):
+                s.time_left = 1
+                if s.my_ask == -1:
+                    s.my_ask = default_ask
+                    s.time_left = 7
+            g.asks = list(s.my_ask for s in ss)
+            g.sum_asks = sum(g.asks)
+            g.down_covered = 0
+            if g.sum_asks <= period.cost:
+                g.down_covered = 1
+            return self.next_stage(g)
+        elif g.stage == 15:
+            if g.direction == 0 and g.up_covered == 1 and g.down_covered == 1:  # Coin flip
+                g.coin_flip = [-1, 1][random.randint(0, 1)]
+                g.outcome = g.coin_flip
+            elif g.up_covered == 1:
+                g.outcome = 1
+            elif g.down_covered == 1:
+                g.outcome = -1
+            else:
+                g.outcome = 0
+            for i, s in enumerate(ss):
+                s.time_left = 30
+                if pe == 1:
+                    s.time_left = 45
+                if g.direction > -1:
+                    s.my_tax = 0
+                    if g.up_covered == 1:
+                        s.my_tax = max(period.cost - (g.sum_bids - s.my_bid), 0)
+                if g.direction < 1:
+                    s.my_rebate = 0
+                    if g.down_covered == 1:
+                        s.my_rebate = period.cost - (g.sum_asks - s.my_ask)
+                if g.outcome == 1:
+                    s.aft_profit = s.value_up - s.my_tax
+                elif g.outcome == -1:
+                    s.aft_profit = s.my_rebate - s.value_down
+                else:
+                    s.aft_profit = 0
+                s.profit = s.aft_profit
+                if ph == 2 or pe % 2 == 0:
+                    s.profit = s.tent_profit + s.aft_profit
+                s.total_profit += s.aft_profit
 
 
 class Group(object):
@@ -420,16 +691,14 @@ class Application(tornado.web.Application):
         return next((s for s in ss if s.key == key), None)
 
     def get_current_phase(self, session):
-        return session.phases[session.phase]
+        return session.phase
 
     def get_current_period(self, session):
-        phase = self.get_current_phase(session)
-        return phase.periods[session.period]
+        return session.period
 
     def get_group(self, session, group):
-        period = self.get_current_period(session)
-        if group in period.groups:
-            return period.groups[group]
+        if group in session.period.groups:
+            return session.period.groups[group]
         else:
             return None
 
@@ -443,16 +712,6 @@ class Application(tornado.web.Application):
         ss = list(s for s in ss if s.state == state)
         return ss
 
-    def get_subjects_by_group(self, group):
-        ss = self.subjects.values()
-        ss = list(s for s in ss if s.group_key == group)
-        return ss
-
-    def get_subjects_by_active(self, session):
-        ss = self.subjects.values()
-        ss = list(s for s in ss if s.session == session and s.is_active())
-        return ss
-
     def set_subject(self, subject):
         self.subjects[subject.key] = subject
 
@@ -464,267 +723,18 @@ class Application(tornado.web.Application):
         self.experimenters[experimenter.key] = experimenter
 
     def start_session(self, session):
-        session.is_started = True
-        session.is_finished = False
-        session.phase = 0
-        self.start_phase(session)
+        session.start()
+        self.continue_session(session)
 
     def stop_session(self, session):
-        session.is_started = False
-        session.is_finished = False
-        session.phase = 0
-        session.period = 0
-        session.stage = 0
+        session.stop()
+        self.continue_session(session)
 
-    def finish_session(self, session):
-        session.is_finished = True
-
-    def start_phase(self, session):
-        ss = self.get_subjects_by_active(session)
-        if session.phase > 0:
-            phase = self.get_current_phase(session)
-            for s in ss:
-                phase.profits[s.key] = s.current_balance - phase.balances[s.key]
-        phase = Phase(session, session.phase)
-        for s in ss:
-            phase.balances[s.key] = s.current_balance
-        session.phases[session.phase] = phase
-        session.period = 0
-        self.start_period(session)
-
-    def start_period(self, session):
-        phase = session.phases[session.phase]
-        period = Period(phase, session.period)
-        roles = list(range(session.group_size))
-        random.shuffle(roles)
-        ss = self.subjects.values()
-        ss = list(s for s in ss if s.session == session and s.is_active())
-        random.shuffle(ss)
-        group = 0
+    def continue_session(self, session, group=None):
+        ss = session.get_subjects_by_active()
+        if group is not None:
+            ss = session.get_subjects_by_group(group)
         for i, s in enumerate(ss):
-            if i > 0 and i % session.group_size == 0:
-                group += 1
-            s.group_key = group
-            if group not in period.groups:
-                g = Group(period, group)
-            s.group = period.groups[group]
-            s.role = roles[i % session.group_size]
-            s.period_profit = 0
-            if session.phase == 0 and session.period == 1:
-                s.total_profit = 0
-                s.current_balance = session.starting_balance
-            if session.period == 1:
-                s.phase_profit = 0
-
-        ps = session.AValuesParamSets[session.phase][session.period]
-        if ps < 2:
-            session.cost = session.cost_low
-        else:
-            session.cost = session.cost_high
-        session.input_step_max = session.cost / session.input_step_size
-        session.input_step_time = 3
-        session.time_for_preparation = 3
-        if session.period == 1:
-            session.input_step_time = 5
-            session.time_for_preparation = 5
-            session.time_for_input = 100
-            session.time_for_result = 125
-        elif session.period == 2:
-            session.time_for_input = 85
-            session.time_for_result = 85
-        else:
-            session.time_for_input = 75
-            session.time_for_result = 65
-
-        for k, g in period.groups.items():
-            if session.phase > 0:
-                g.stage = 0
-            else:
-                g.stage = 4
-            g.stage_name = Group.stages[g.stage]
-            self.start_stage(session, k)
-
-    def start_stage(self, session, group):
-        gr = group
-        period = self.get_current_period(session)
-        g = period.groups[gr]
-        g.label_continue = 'Continue'
-        ph = session.phase
-        pe = session.period
-        ss = self.get_subjects_by_group(gr)
-        ss = list(s for s in ss if s.session == session and s.is_active())
-        for i, s in enumerate(ss):
-            s.is_participating = True
-            s.time_left = 0
-
-        if g.stage == 0:
-            for i, s in enumerate(ss):
-                s.time_left = session.time_for_input
-                s.example_cost = session.AValueUp[ph][s.role][2]
-                defp = 0
-                while session.AValueUp[ph][s.role][defp] > s.cost / 2:
-                    defp += 1
-                s.default_provide = defp
-                s.my_provide = None
-                s.time_left = session.time_for_input
-        elif g.stage == 1:
-            for i, s in enumerate(ss):  # Iterating over subjects
-                if s.my_provide is None:
-                    s.my_provide = s.default_provide
-            g.provides = list(s.my_provide for s in ss)
-            g.sum_provides = sum(g.provides)
-            g.sum_halvers = len(s for s in ss if s.my_provide is not None and float(s.my_provide) - int(s.my_provide) > 0)
-            g.quantity_reached = min(session.quantity_max, g.sum_provides)
-            g.some_refund = 0
-            if g.sum_halvers == 1 \
-                or g.sum_halvers == 3 \
-                    or g.sum_halvers == 5:
-                g.some_refund = 1
-            if (ph > 1):
-                g.quantity_initial = g.quantity_reached
-                g.quantity_up = s.quantity_initial + 1
-                g.quantity_down = s.quantity_initial - 1
-                g.direction = 0
-                if g.quantity_down == -1:
-                    g.direction = 1
-                elif s.quantity_up == 11:
-                    g.direction = -1
-            for i, s in enumerate(ss):  # Iterating over subjects
-                s.my_cost_unit = s.my_provide
-                not_integer = float(s.my_provide) - int(s.my_provide) > 0
-                if not_integer and g.some_refund == 1:
-                    s.my_cost_unit = s.my_provide - 0.5 / g.sum_halvers
-                s.my_cost = session.cost * s.my_cost_unit
-                s.tent_profit = session.AValues[session.AValuesParamSets[ph][pe], s.role, g.quantity_reached] - s.my_cost
-                s.profit = s.tent_profit
-                s.total_profit += s.profit
-                s.current_balance += s.profit
-            return self.next_stage(session, group)
-        elif g.stage == 2:
-            for i, s in enumerate(ss):
-                s.time_left = session.time_for_result
-        elif g.stage == 3:
-            if ph == 1 or pe % 2 != 0:
-                for i, s in enumerate(ss):
-                    if s.current_balance < -session.maximum_loss:
-                        s.is_suspended = True
-                        s.set_status('robot')
-                    elif s.current_balance < 0:
-                        s.set_status('losing')
-                session.period += 1
-                self.start_period(session)
-            else:
-                self.next_stage(session, group)
-            return
-        elif g.stage == 4:
-            for i, s in enumerate(ss):
-                if ph == 0:
-                    g.quantity_initial = session.AInitQ[session.period]
-                    g.direction = session.ADirectionPhase1[session.period]
-                    g.quantity_up = g.quantity_initial + 1
-                    g.quantity_down = g.quantity_initial - 1
-                s.value_up = session.AValueUp[session.AValuesParamSets[ph][pe]][s.role][g.quantity_initial]
-                s.value_down = session.AValueUp[session.AValuesParamSets[ph][pe]][s.role][g.quantity_down]
-            g.stage = 5
-        elif g.stage == 6:
-            return self.next_stage(session, group)
-        elif g.stage == 7:
-            if g.direction == -1:
-                return self.next_stage(session, group)
-            for i, s in enumerate(ss):
-                s.time_left = session.time_for_preparation
-        elif g.stage == 8:
-            if g.direction == -1:
-                return self.next_stage(session, group)
-            for i, s in enumerate(ss):
-                s.my_bid = -1
-                s.price = 0
-                s.time_left = session.input_step_max * session.input_step_time
-            g.label_continue = 'Accept'
-        elif g.stage == 9:
-            if g.direction == -1:
-                return self.next_stage(session, group)
-            default_bid = min(session.cost, self.roundup(s.value_up, 0.5))
-            for i, s in enumerate(ss):
-                s.time_left = 1
-                if s.my_bid == -1:
-                    s.my_bid = default_bid
-                    s.time_left = 7
-            g.bids = list(s.my_bid for s in ss)
-            g.sum_bids = sum(g.bids)
-            g.up_covered = 0
-            if g.sum_bids >= session.cost:
-                g.up_covered = 1
-            return self.next_stage(session, group)
-        elif g.stage == 10:
-            if g.direction != 0:
-                return self.next_stage(session, group)
-            for i, s in enumerate(ss):
-                s.time_left = session.time_for_preparation + 2
-        elif g.stage == 11:
-            return self.next_stage(session, group)
-        elif g.stage == 12:
-            if g.direction == 1:
-                return self.next_stage(session, group)
-            for i, s in enumerate(ss):
-                s.time_left = session.time_for_preparation
-        elif g.stage == 13:
-            if g.direction == 1:
-                return self.next_stage(session, group)
-            for i, s in enumerate(ss):
-                s.my_ask = -1
-                s.price = 0
-                s.time_left = session.input_step_max * session.input_step_time
-            g.label_continue = 'Accept'
-        elif g.stage == 14:
-            if g.direction == 1:
-                return self.next_stage(session, group)
-            default_ask = session.cost
-            for i, s in enumerate(ss):
-                s.time_left = 1
-                if s.my_ask == -1:
-                    s.my_ask = default_ask
-                    s.time_left = 7
-            g.asks = list(s.my_ask for s in ss)
-            g.sum_asks = sum(g.asks)
-            g.down_covered = 0
-            if g.sum_asks <= session.cost:
-                g.down_covered = 1
-            return self.next_stage(session, group)
-        elif g.stage == 15:
-            if g.direction == 0 and g.up_covered == 1 and g.down_covered == 1:  # Coin flip
-                g.coin_flip = [-1, 1][random.randint(0, 1)]
-                g.outcome = g.coin_flip
-            elif g.up_covered == 1:
-                g.outcome = 1
-            elif g.down_covered == 1:
-                g.outcome = -1
-            else:
-                g.outcome = 0
-            for i, s in enumerate(ss):
-                s.time_left = 30
-                if session.period == 1:
-                    s.time_left = 45
-                if g.direction > -1:
-                    s.my_tax = 0
-                    if g.up_covered == 1:
-                        s.my_tax = max(session.cost - (g.sum_bids - s.my_bid), 0)
-                if g.direction < 1:
-                    s.my_rebate = 0
-                    if g.down_covered == 1:
-                        s.my_rebate = session.cost - (g.sum_asks - s.my_ask)
-                if g.outcome == 1:
-                    s.aft_profit = s.value_up - s.my_tax
-                elif g.outcome == -1:
-                    s.aft_profit = s.my_rebate - s.value_down
-                else:
-                    s.aft_profit = 0
-                s.profit = s.aft_profit
-                if ph == 2 or pe % 2 == 0:
-                    s.profit = s.tent_profit + s.aft_profit
-                s.total_profit += s.aft_profit
-        for i, s in enumerate(ss):
-            s.set_state('active')
             socket = self.get_socket(s.key)
             if socket is not None:
                 if s.time_left > 0:
@@ -735,21 +745,25 @@ class Application(tornado.web.Application):
     def next_stage(self, session, group):
         g = self.get_group(session, group)
         if g.stage < 15:
-            g.stage += 1
-            self.start_stage(session, group)
+            session.period.start_stage(g, g.stage + 1)
+        self.continue_session(session, group)
 
     def next_period(self, session):
-        if (session.phase == 0 and session.period < 12) \
-                or (session.phase > 0 and session.period < 24):
-            session.period += 1
-            self.start_period(session)
+        if session.period is not None:
+            session.period.finish()
+        if (session.phase.key == 0 and session.period.key < 12) \
+                or (session.phase.key > 0 and session.period.key < 24):
+            p = Period(session.phase, session.period.key + 1)
+            p.start()
         else:
             self.next_phase(session)
 
     def next_phase(self, session):
-        if session.phase < 3:
-            session.phase += 1
-            session.start_phase(session)
+        if session.phase is not None:
+            session.phase.finish()
+        if session.phase.key < 3:
+            p = zook.Phase(session, session.phase.key + 1)
+            p.start()
         else:
             self.finish_session(session)
 
@@ -758,7 +772,7 @@ class Application(tornado.web.Application):
         waiting_groups = []
         finished_groups = []
         for (i, group) in period.groups.items():
-            subjects = self.get_subjects_by_group(i)
+            subjects = session.get_subjects_by_group(i)
             if len(list(s for s in subjects if Subject.states[s.state] == 'waiting')) == len(subjects):
                 waiting_groups.append(group.key)
                 if group.stage == 15:
@@ -768,17 +782,3 @@ class Application(tornado.web.Application):
         elif len(waiting_groups) > 0:
             for group in waiting_groups:
                 self.next_stage(session, group)
-
-    @staticmethod
-    def roundup(x, y):
-        h = y
-        if x > y:
-            for i in range(2, 100):
-                z = i * round(y, 5)
-                if x <= z:
-                    return round(z, 5)
-                    break
-        if x < h:
-            return round(h, 5)
-        if x == h:
-            return round(h, 5)

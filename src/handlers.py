@@ -367,19 +367,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
     def stop_session(self, message):
         self.check_experimenter()
         self.application.stop_session(self.session)
-        subjects = self.application.get_subjects_by_state('active')
-        for subject in subjects:
-            subject.set_state('waiting')
-            group = self.application.get_group(self.session, subject.group)
-            socket = self.application.get_socket(subject.key)
-            if socket is not None:
-                data = {
-                    'session': self.session,
-                    'group': group,
-                    'subject': subject
-                }
-                socket.send('continue_session', data)
-        return self.session.__dict__
+        return self.session
 
     def continue_session(self, message):
         self.check_data(message)

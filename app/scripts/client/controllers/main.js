@@ -148,7 +148,19 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', '$interval
 
     $scope.$watch('group.stage', function () {
         if ($scope.group.stage >= 0) {
-            $scope.title = 'Phase: ' + $scope.session.phase + ', Period: ' + $scope.session.period + ', Stage: ' + $scope.group.stage;
+            var title = '';
+            if ($scope.session.phase !== null) {
+                title += 'Phase: ' + $scope.session.phase.key;
+                if ($scope.session.period !== null) {
+                    title += ', Period: ' + $scope.session.period.key;
+                    if ($scope.group !== null) {
+                        title += ', Stage: ' + $scope.group.stage;
+                    }
+                }
+            }
+            if (title !== '') {
+                $scope.title = 'Phase: ' + $scope.session.phase.key + ', Period: ' + $scope.session.period.key + ', Stage: ' + $scope.group.stage;
+            }
         }
     });
 
