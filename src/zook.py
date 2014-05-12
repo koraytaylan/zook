@@ -256,11 +256,12 @@ class Period(object):
             self.balances[s.key] = s.current_balance
             if i > 0 and i % session.group_size == 0:
                 group += 1
-            s.group_key = group
             if group not in self.groups:
                 g = Group(self, group)
             s.group = self.groups[group]
             s.role = roles[i % session.group_size]
+            g.subjects[s.key] = s
+            g.roles[s.key] = s.role
             s.period_profit = 0
 
         ps = session.AValuesParamSets[self.phase.key][self.key]
@@ -325,6 +326,8 @@ class Group(object):
         self.period = period
         period.groups[key] = self
         self.key = key
+        self.subjects = {}
+        self.roles = {}
 
         self.stage = -1
         self.stage_name = ''
@@ -344,9 +347,9 @@ class Group(object):
         self.sum_bids = 0
         self.sum_asks = 0
 
-        self.bids = None
-        self.asks = None
-        self.provides = None
+        self.bids = {}
+        self.asks = {}
+        self.provides = {}
 
         self.label_continue = 'Continue'
 
@@ -410,8 +413,8 @@ class Group(object):
                     s.my_provide = rp
                 elif s.my_provide is None:
                     s.my_provide = s.default_provide
-            group.provides = list(float(s.my_provide) for s in ss)
-            group.sum_provides = sum(group.provides)
+                group.provides[s.key] = float(s.my_provide)
+                group.sum_provides += float(s.my_provide)
             group.sum_halvers = len(
                 list(s for s in ss if s.my_provide is not None and float(s.my_provide) - float(s.my_provide) > 0)
             )
@@ -488,8 +491,8 @@ class Group(object):
                 elif s.my_bid == -1:
                     s.my_bid = default_bid
                     s.time_left = 7
-            group.bids = list(s.my_bid for s in ss)
-            group.sum_bids = sum(group.bids)
+                group.bids[s.key] = float(s.my_bid)
+                group.sum_bids += float(s.my_bid)
             group.up_covered = 0
             if group.sum_bids >= period.cost:
                 group.up_covered = 1
@@ -524,8 +527,8 @@ class Group(object):
                 elif s.my_ask == -1:
                     s.my_ask = default_ask
                     s.time_left = 7
-            group.asks = list(s.my_ask for s in ss)
-            group.sum_asks = sum(group.asks)
+                group.asks[s.key] = float(s.my_ask)
+                group.sum_asks += float(s.my_ask)
             group.down_covered = 0
             if group.sum_asks <= period.cost:
                 group.down_covered = 1
@@ -589,7 +592,6 @@ class Subject(object):
             key = str(uuid.uuid4())
         self.session.subjects[key] = self
         self.key = key
-        self.session_key = key
         self.name = None
         self.previous_state = 1
         self.state = 1
@@ -600,7 +602,6 @@ class Subject(object):
         self.is_robot = False
         self.is_initialized = False
         self.group = None
-        self.group_key = 0
         self.role = 0
 
         self.my_cost = 0
@@ -792,24 +793,26 @@ class Application(tornado.web.Application):
 
     @staticmethod
     def to_dict(obj, classkey=None, ignores=None):
-        if ignores is not None and obj in ignores:
-            return None
-        elif isinstance(obj, dict):
+        igs = []
+        if ignores is not None:
+            if obj in ignores:
+                return None
+            igs.extend(ignores)
+        if hasattr(obj, '__dict__') and obj not in igs:
+            igs.append(obj)
+        if isinstance(obj, dict):
             data = {}
             for (k, v) in obj.items():
-                data[k] = Application.to_dict(v, classkey, ignores)
+                data[k] = Application.to_dict(v, classkey, igs)
             return data
         elif isinstance(obj, list):
             data = []
             for v in obj:
-                data.append(Application.to_dict(v, classkey, ignores))
+                data.append(Application.to_dict(v, classkey, igs))
             return data
         elif hasattr(obj, "_ast"):
             return Application.to_dict(obj._ast())
         elif hasattr(obj, "__dict__"):
-            igs = [obj]
-            if ignores is not None:
-                igs.extend(ignores)
             data = dict([(key, Application.to_dict(value, classkey, igs))
                         for key, value in obj.__dict__.items()
                         if not callable(value) and not key.startswith('_')])
@@ -824,5 +827,5 @@ class Application(tornado.web.Application):
             os.makedirs(self.data_path)
         with open(os.path.join(self.data_path, 'session-' + session.key + '.json'), 'w') as f:
             d = self.to_dict(session)
-            j = json.dumps(d, indent=4)
+            j = json.dumps(d, sort_keys=True)
             f.write(j)
