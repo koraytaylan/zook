@@ -1,11 +1,11 @@
-<p>Your group's choices were: <strong ng-repeat-start="value in group.provides track by $index">{{value}}, </strong><strong ng-repeat-end>{{value}}</strong>.</p>
-<p>These sum to {{session.SumProvides[subject.group] | number:1}}; {{session.QReached[session.phase][session.period][subject.group]}} units are produced.</p>
-<ng-switch on="session.SumHalvers[subject.group]">
+<p>Your group's choices were: <strong ng-repeat="value in group.provides track by $index">{{$index > 0 && ', ' || ''}}{{value | number:1}}</strong>.</p>
+<p>These sum to {{group.sum_provides | number:1}}; {{group.quantity_reached}} units are produced.</p>
+<ng-switch on="group.sum_halvers">
   <p ng-switch-when="1">One member's provision was reduced by 1/2 to an integer.</p>
   <p ng-switch-when="3">Three members' provisions were reduced by 1/6 to yield an integer sum; each paid 1/3 of the last unit cost.</p>
   <p ng-switch-when="5">Five members' provisions were reduced by 1/10 to yield an integer sum; each paid 2/5 of a unit’s cost, for the last two units produced.</p>
 </ng-switch>
-<p>The value to you of {{session.QReached[session.phase][session.period][subject.group]}} units of Zook is {{session.AValues[session.AValuesParamSets[session.phase][session.period]][subject.role][session.QReached[session.phase][session.period][subject.group]] | currency}}. From this your cost of providing {{session.MyCostUnits[subject.group][subject.role] | number:1}}, {{subject.my_cost | currency}}, is subtracted.</p>
-<p>Your profit this period{{(session.phase == 2 || session.period % 2 == 0) && ', at this point,' || ''}} is {{subject.profit | currency}}, your earnings so far are {{subject.total_profit | currency}}.</p>
-<p>Your bank balance is currently {{subject.current_balance}}.</p>
-<p ng-if="session.phase == 2 || session.period % 2 == 0">We will next consider {{session.direction > -1 && 'increasing to ' + subject.quantity_up ||'decreasing to ' + subject.quantity_down}} units.</p>
+<p>The value to you of {{group.quantity_reached}} units of Zook is {{session.AValues[session.AValuesParamSets[session.phase.key][session.period.key]][subject.role][group.quantity_reached] | currency}}. From this your cost of providing {{subject.my_cost_unit | number:1}}, {{subject.my_cost | currency}}, is subtracted.</p>
+<p>Your profit this period{{(session.phase.key == 2 || session.period.key % 2 == 0) && ', at this point,' || ''}} is <strong>{{subject.period_profit | currency}}</strong>, your earnings so far are <strong>{{subject.total_profit | currency}}</strong>.</p>
+<p>Your bank balance is currently <strong>{{subject.current_balance | currency}}</strong>.</p>
+<p ng-if="session.phase.key == 2 || session.period.key % 2 == 0">We will next consider {{group.direction > -1 && 'increasing to ' + group.quantity_up || 'decreasing to ' + group.quantity_down}} units.</p>

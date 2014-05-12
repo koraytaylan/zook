@@ -1,10 +1,11 @@
 import tornado.web
-import os
-import handlers
 import uuid
 import random
 import threading
-import math
+import handlers
+import os
+import json
+import time
 
 
 def roundup(x, y):
@@ -14,7 +15,6 @@ def roundup(x, y):
             z = i * round(y, 5)
             if x <= z:
                 return round(z, 5)
-                break
     if x < h:
         return round(h, 5)
     if x == h:
@@ -26,12 +26,13 @@ class Session(object):
 
     def __init__(self):
         super(Session, self).__init__()
+        self.created_at = time.time()
         self.key = str(uuid.uuid4())
         self.subjects = {}
+        self.experimenters = {}
         self.phases = {}
-        self.phase = 0
-        self.period = 0
-        self.stage = 0
+        self.phase = None
+        self.period = None
         self.is_started = False
         self.is_finished = False
         self.is_all_ready = False
@@ -177,7 +178,7 @@ class Session(object):
 
     def get_subjects_by_group(self, group):
         ss = self.subjects.values()
-        ss = list(s for s in ss if s.group_key == group)
+        ss = list(s for s in ss if s.group == group)
         return ss
 
     def next_phase(self):
@@ -268,7 +269,7 @@ class Period(object):
         else:
             self.cost = session.cost_high
         session.input_step_max = self.cost / session.input_step_size
-        session.input_step_time = 3
+        session.input_step_time = 1
         session.time_for_preparation = 3
         if self.key == 1:
             session.input_step_time = 5
@@ -288,201 +289,12 @@ class Period(object):
                 g.stage = 0
             else:
                 g.stage = 4
-            g.stage_name = Group.stages[g.stage]
-            self.start_stage(g, g.stage)
+            g.start_stage()
 
     def finish(self):
         ss = self.phase.session.get_subjects_by_active()
         for s in ss:
             self.profits[s.key] = s.current_balance - self.balances[s.key]
-
-    def next_stage(self, group):
-        if (group.stage < 15):
-            group.stage += 1
-        self.start_stage(group, group.stage)
-
-    def start_stage(self, group, stage):
-        session = self.phase.session
-        period = session.period
-        gr = group.key
-        g = group
-        g.stage = stage
-        g.label_continue = 'Continue'
-        ph = session.phase.key
-        pe = self.key
-        ss = session.get_subjects_by_group(gr)
-        ss = list(s for s in ss if s.session == session and s.is_active())
-        for i, s in enumerate(ss):
-            s.is_participating = True
-            s.time_left = 0
-            s.set_state('active')
-
-        if g.stage == 0:
-            for i, s in enumerate(ss):
-                s.time_left = session.time_for_input
-                s.example_cost = session.AValueUp[ph][s.role][2]
-                defp = 0
-                while session.AValueUp[ph][s.role][defp] > period.cost / 2:
-                    defp += 1
-                s.default_provide = defp
-                s.my_provide = None
-                s.time_left = session.time_for_input
-        elif g.stage == 1:
-            for i, s in enumerate(ss):  # Iterating over subjects
-                if s.my_provide is None:
-                    s.my_provide = s.default_provide
-            g.provides = list(float(s.my_provide) for s in ss)
-            g.sum_provides = sum(g.provides)
-            g.sum_halvers = len(list(s for s in ss if s.my_provide is not None and float(s.my_provide) - float(s.my_provide) > 0))
-            g.quantity_reached = min(session.quantity_max, g.sum_provides)
-            g.some_refund = 0
-            if g.sum_halvers == 1 \
-                or g.sum_halvers == 3 \
-                    or g.sum_halvers == 5:
-                g.some_refund = 1
-            if (ph > 1):
-                g.quantity_initial = g.quantity_reached
-                g.quantity_up = s.quantity_initial + 1
-                g.quantity_down = s.quantity_initial - 1
-                g.direction = 0
-                if g.quantity_down == -1:
-                    g.direction = 1
-                elif s.quantity_up == 11:
-                    g.direction = -1
-            for i, s in enumerate(ss):  # Iterating over subjects
-                s.my_cost_unit = s.my_provide
-                not_integer = float(s.my_provide) - float(s.my_provide) > 0
-                if not_integer and g.some_refund == 1:
-                    s.my_cost_unit = s.my_provide - 0.5 / g.sum_halvers
-                s.my_cost = period.cost * s.my_cost_unit
-                s.tent_profit = session.AValues[session.AValuesParamSets[ph][pe], s.role, g.quantity_reached] - s.my_cost
-                s.profit = s.tent_profit
-                s.total_profit += s.profit
-                s.current_balance += s.profit
-            return self.next_stage(g)
-        elif g.stage == 2:
-            for i, s in enumerate(ss):
-                s.time_left = session.time_for_result
-        elif g.stage == 3:
-            if ph == 1 or pe % 2 != 0:
-                for i, s in enumerate(ss):
-                    if s.current_balance < -session.maximum_loss:
-                        s.is_suspended = True
-                        s.set_status('robot')
-                    elif s.current_balance < 0:
-                        s.set_status('losing')
-                self.phase.next_period()
-            else:
-                self.next_stage(g)
-            return
-        elif g.stage == 4:
-            for i, s in enumerate(ss):
-                if ph == 0:
-                    g.quantity_initial = session.AInitQ[pe]
-                    g.direction = session.ADirectionPhase1[pe]
-                    g.quantity_up = g.quantity_initial + 1
-                    g.quantity_down = g.quantity_initial - 1
-                s.value_up = session.AValueUp[session.AValuesParamSets[ph][pe]][s.role][g.quantity_initial]
-                s.value_down = session.AValueUp[session.AValuesParamSets[ph][pe]][s.role][g.quantity_down]
-            g.stage = 5
-        elif g.stage == 6:
-            return self.next_stage(g)
-        elif g.stage == 7:
-            if g.direction == -1:
-                return self.next_stage(g)
-            for i, s in enumerate(ss):
-                s.time_left = session.time_for_preparation
-        elif g.stage == 8:
-            if g.direction == -1:
-                return self.next_stage(g)
-            for i, s in enumerate(ss):
-                s.my_bid = -1
-                s.price = 0
-                s.time_left = session.input_step_max * session.input_step_time
-            g.label_continue = 'Accept'
-        elif g.stage == 9:
-            if g.direction == -1:
-                return self.next_stage(g)
-            default_bid = min(period.cost, roundup(s.value_up, 0.5))
-            for i, s in enumerate(ss):
-                s.time_left = 1
-                if s.my_bid == -1:
-                    s.my_bid = default_bid
-                    s.time_left = 7
-            g.bids = list(s.my_bid for s in ss)
-            g.sum_bids = sum(g.bids)
-            g.up_covered = 0
-            if g.sum_bids >= period.cost:
-                g.up_covered = 1
-            return self.next_stage(g)
-        elif g.stage == 10:
-            if g.direction != 0:
-                return self.next_stage(g)
-            for i, s in enumerate(ss):
-                s.time_left = session.time_for_preparation + 2
-        elif g.stage == 11:
-            return self.next_stage(g)
-        elif g.stage == 12:
-            if g.direction == 1:
-                return self.next_stage(g)
-            for i, s in enumerate(ss):
-                s.time_left = session.time_for_preparation
-        elif g.stage == 13:
-            if g.direction == 1:
-                return self.next_stage(g)
-            for i, s in enumerate(ss):
-                s.my_ask = -1
-                s.price = 0
-                s.time_left = session.input_step_max * session.input_step_time
-            g.label_continue = 'Accept'
-        elif g.stage == 14:
-            if g.direction == 1:
-                return self.next_stage(g)
-            default_ask = period.cost
-            for i, s in enumerate(ss):
-                s.time_left = 1
-                if s.my_ask == -1:
-                    s.my_ask = default_ask
-                    s.time_left = 7
-            g.asks = list(s.my_ask for s in ss)
-            g.sum_asks = sum(g.asks)
-            g.down_covered = 0
-            if g.sum_asks <= period.cost:
-                g.down_covered = 1
-            return self.next_stage(g)
-        elif g.stage == 15:
-            if g.direction == 0 and g.up_covered == 1 and g.down_covered == 1:  # Coin flip
-                g.coin_flip = [-1, 1][random.randint(0, 1)]
-                g.outcome = g.coin_flip
-            elif g.up_covered == 1:
-                g.outcome = 1
-            elif g.down_covered == 1:
-                g.outcome = -1
-            else:
-                g.outcome = 0
-            for i, s in enumerate(ss):
-                s.time_left = 30
-                if pe == 1:
-                    s.time_left = 45
-                if g.direction > -1:
-                    s.my_tax = 0
-                    if g.up_covered == 1:
-                        s.my_tax = max(period.cost - (g.sum_bids - s.my_bid), 0)
-                if g.direction < 1:
-                    s.my_rebate = 0
-                    if g.down_covered == 1:
-                        s.my_rebate = period.cost - (g.sum_asks - s.my_ask)
-                if g.outcome == 1:
-                    s.aft_profit = s.value_up - s.my_tax
-                elif g.outcome == -1:
-                    s.aft_profit = s.my_rebate - s.value_down
-                else:
-                    s.aft_profit = 0
-                s.profit = s.aft_profit
-                if ph == 2 or pe % 2 == 0:
-                    s.profit = s.tent_profit + s.aft_profit
-                s.total_profit += s.aft_profit
-                s.current_balance += s.profit
 
 
 class Group(object):
@@ -541,9 +353,220 @@ class Group(object):
         self.coin_flip = 0
         self.outcome = 0
 
+        self.is_finished_period = False
+
     def set_stage(self, stage):
         self.stage = stage
         self.stage_name = Group.stages[stage]
+
+    def next_stage(self):
+        if (self.stage < 15):
+            self.stage += 1
+        self.start_stage()
+
+    def start_stage(self):
+        group = self
+        period = self.period
+        phase = period.phase
+        session = phase.session
+        group.stage_name = Group.stages[group.stage]
+        group.label_continue = 'Continue'
+        ph = phase.key
+        pe = period.key
+        param_set = session.AValuesParamSets[ph][pe]
+        ss = session.get_subjects_by_group(group)
+        ss = list(s for s in ss if s.session == session and s.is_active())
+        for i, s in enumerate(ss):
+            s.is_participating = True
+            s.time_left = 0
+            s.set_state('active')
+
+        if group.stage == 0:
+            for i, s in enumerate(ss):
+                s.time_left = session.time_for_input
+                s.example_cost = session.AValueUp[ph][s.role][2]
+                defp = 0
+                while session.AValueUp[ph][s.role][defp] > period.cost / 2:
+                    defp += 1
+                s.default_provide = defp
+                s.my_provide = None
+                s.time_left = session.time_for_input
+        elif group.stage == 1:
+            for i, s in enumerate(ss):  # Iterating over subjects
+                if s.is_robot:
+                    sp = 0.5
+                    rp = 0
+                    while True:
+                        rpIn = rp
+                        if session.AValueUp[param_set][s.role][rp + 1] > period.cost / 2:
+                            rp += sp
+                        if rpIn == rp:
+                            break
+                        rpIn = rp
+                        if session.AValueUp[param_set][s.role][rp + 0.5] > period.cost:
+                            rp += sp
+                        if rpIn == rp:
+                            break
+                    s.my_provide = rp
+                elif s.my_provide is None:
+                    s.my_provide = s.default_provide
+            group.provides = list(float(s.my_provide) for s in ss)
+            group.sum_provides = sum(group.provides)
+            group.sum_halvers = len(
+                list(s for s in ss if s.my_provide is not None and float(s.my_provide) - float(s.my_provide) > 0)
+            )
+            group.quantity_reached = min(session.quantity_max, int(group.sum_provides))
+            group.some_refund = 0
+            if group.sum_halvers == 1 \
+                or group.sum_halvers == 3 \
+                    or group.sum_halvers == 5:
+                group.some_refund = 1
+            if (ph > 1):
+                group.quantity_initial = group.quantity_reached
+                group.quantity_up = group.quantity_initial + 1
+                group.quantity_down = group.quantity_initial - 1
+                group.direction = 0
+                if group.quantity_down == -1:
+                    group.direction = 1
+                elif group.quantity_up == 11:
+                    group.direction = -1
+            for i, s in enumerate(ss):  # Iterating over subjects
+                s.my_cost_unit = float(s.my_provide)
+                not_integer = float(s.my_provide) - float(s.my_provide) > 0
+                if not_integer and group.some_refund == 1:
+                    s.my_cost_unit = s.my_provide - 0.5 / group.sum_halvers
+                s.my_cost = period.cost * s.my_cost_unit
+                param = session.AValuesParamSets[ph][pe]
+                s.tent_profit = session.AValues[param][s.role][group.quantity_reached] - s.my_cost
+                s.period_profit = s.tent_profit
+                s.total_profit += s.period_profit
+                s.current_balance += s.period_profit
+            return self.next_stage()
+        elif group.stage == 2:
+            for i, s in enumerate(ss):
+                s.time_left = session.time_for_result
+            if ph == 1 or pe % 2 != 0:
+                for i, s in enumerate(ss):
+                    if s.current_balance < -session.maximum_loss:
+                        s.is_robot = True
+                        s.set_state('robot')
+                group.is_finished_period = True
+        elif group.stage == 3:
+            return self.next_stage()
+        elif group.stage == 4:
+            for i, s in enumerate(ss):
+                if ph == 0:
+                    group.quantity_initial = session.AInitQ[pe]
+                    group.direction = session.ADirectionPhase1[pe]
+                    group.quantity_up = group.quantity_initial + 1
+                    group.quantity_down = group.quantity_initial - 1
+                s.value_up = session.AValueUp[session.AValuesParamSets[ph][pe]][s.role][group.quantity_initial]
+                s.value_down = session.AValueUp[session.AValuesParamSets[ph][pe]][s.role][group.quantity_down]
+            group.stage = 5
+        elif group.stage == 6:
+            return self.next_stage()
+        elif group.stage == 7:
+            if group.direction == -1:
+                return self.next_stage()
+            for i, s in enumerate(ss):
+                s.time_left = session.time_for_preparation
+        elif group.stage == 8:
+            if group.direction == -1:
+                return self.next_stage()
+            for i, s in enumerate(ss):
+                s.my_bid = -1
+                s.time_left = session.input_step_max * session.input_step_time
+            group.label_continue = 'Accept'
+        elif group.stage == 9:
+            if group.direction == -1:
+                return self.next_stage()
+            for i, s in enumerate(ss):
+                default_bid = min(period.cost, roundup(s.value_up, 0.5))
+                s.time_left = 1
+                if s.is_robot:
+                    s.my_bid = s.value_up
+                elif s.my_bid == -1:
+                    s.my_bid = default_bid
+                    s.time_left = 7
+            group.bids = list(s.my_bid for s in ss)
+            group.sum_bids = sum(group.bids)
+            group.up_covered = 0
+            if group.sum_bids >= period.cost:
+                group.up_covered = 1
+            return self.next_stage()
+        elif group.stage == 10:
+            if group.direction != 0:
+                return self.next_stage()
+            for i, s in enumerate(ss):
+                s.time_left = session.time_for_preparation + 2
+        elif group.stage == 11:
+            return self.next_stage()
+        elif group.stage == 12:
+            if group.direction == 1:
+                return self.next_stage()
+            for i, s in enumerate(ss):
+                s.time_left = session.time_for_preparation
+        elif group.stage == 13:
+            if group.direction == 1:
+                return self.next_stage()
+            for i, s in enumerate(ss):
+                s.my_ask = -1
+                s.time_left = session.input_step_max * session.input_step_time
+            group.label_continue = 'Accept'
+        elif group.stage == 14:
+            if group.direction == 1:
+                return self.next_stage()
+            default_ask = period.cost
+            for i, s in enumerate(ss):
+                s.time_left = 1
+                if s.is_robot:
+                    s.my_ask = s.value_down
+                elif s.my_ask == -1:
+                    s.my_ask = default_ask
+                    s.time_left = 7
+            group.asks = list(s.my_ask for s in ss)
+            group.sum_asks = sum(group.asks)
+            group.down_covered = 0
+            if group.sum_asks <= period.cost:
+                group.down_covered = 1
+            return self.next_stage()
+        elif group.stage == 15:
+            if group.direction == 0 and group.up_covered == 1 and group.down_covered == 1:  # Coin flip
+                group.coin_flip = [-1, 1][random.randint(0, 1)]
+                group.outcome = group.coin_flip
+            elif group.up_covered == 1:
+                group.outcome = 1
+            elif group.down_covered == 1:
+                group.outcome = -1
+            else:
+                group.outcome = 0
+            group.is_finished_period = True
+            for i, s in enumerate(ss):
+                s.time_left = 30
+                if pe == 1:
+                    s.time_left = 45
+                if group.direction > -1:
+                    s.my_tax = 0
+                    if group.up_covered == 1:
+                        s.my_tax = max(period.cost - (group.sum_bids - s.my_bid), 0)
+                if group.direction < 1:
+                    s.my_rebate = 0
+                    if group.down_covered == 1:
+                        s.my_rebate = period.cost - (group.sum_asks - s.my_ask)
+                if group.outcome == 1:
+                    s.aft_profit = s.value_up - s.my_tax
+                elif group.outcome == -1:
+                    s.aft_profit = s.my_rebate - s.value_down
+                else:
+                    s.aft_profit = 0
+                s.period_profit = s.aft_profit
+                if ph == 2 or pe % 2 == 0:
+                    s.period_profit = s.tent_profit + s.aft_profit
+                s.total_profit += s.aft_profit
+                s.current_balance += s.period_profit
+                if s.current_balance < -session.maximum_loss:
+                    s.is_robot = True
+                    s.set_state('robot')
 
 
 class Subject(object):
@@ -556,17 +579,8 @@ class Subject(object):
         3: 'suspended',
         100: 'active',
         101: 'waiting',
-        102: 'bankrupt',
-        103: 'robot'
+        102: 'robot'
         }
-
-    statuses = {
-        0: '',
-        1: 'live',
-        2: 'losing',
-        3: 'bankrupt',
-        4: 'robot'
-    }
 
     def __init__(self, session, key=None):
         super(Subject, self).__init__()
@@ -583,6 +597,7 @@ class Subject(object):
         self.previous_status = 0
         self.status = 0
         self.is_suspended = False
+        self.is_robot = False
         self.is_initialized = False
         self.group = None
         self.group_key = 0
@@ -590,9 +605,8 @@ class Subject(object):
 
         self.my_cost = 0
         self.tent_profit = 0
-        self.profit = 0
-        self.period_profits = [[0] * 24] * 4
-        self.phase_profits = [0] * 4
+        self.period_profit = 0
+        self.phase_profit = 0
         self.total_profit = 0
         self.aft_profit = 0
         self.current_balance = 0
@@ -600,7 +614,6 @@ class Subject(object):
         self.my_ask = -1
         self.my_tax = -1
         self.my_rebate = -1
-        self.price = 0
 
         self.example_cost = 0
         self.my_provide = None
@@ -618,23 +631,21 @@ class Subject(object):
         return list(d.keys())[list(d.values()).index(name)]
 
     def set_state(self, name):
+        if self.is_suspended:
+            name = 'suspended'
+        elif self.is_robot:
+            name = 'robot'
         self.previous_state = self.state
         self.state = self.get_state_by_name(name)
         self.state_name = name
         return self.state
 
-    @staticmethod
-    def get_status_by_name(name):
-        d = Subject.statuses
-        return list(d.keys())[list(d.values()).index(name)]
-
-    def set_status(self, name):
-        self.previous_status = self.status
-        self.status = self.get_status_by_name(name)
-        return self.status
-
     def decide_state(self):
-        if not self.is_initialized and self.name is None:
+        if self.is_suspended:
+            self.set_state('suspended')
+        elif self.is_robot:
+            self.set_state('robot')
+        elif not self.is_initialized and self.name is None:
             self.set_state('initial')
         else:
             self.is_initialized = True
@@ -650,26 +661,11 @@ class Subject(object):
     def is_active(self):
         return int(self.state / 100) == 1
 
-    def to_dict(self):
-        return dict(
-            key=self.key,
-            name=self.name,
-            state=self.state,
-            state_name=Subject.states[self.state],
-            status=self.status,
-            status_name=Subject.statuses[self.status],
-            is_suspended=self.is_suspended,
-            group=self.group,
-            role=self.role,
-            example_cost=self.example_cost,
-            time_left=self.time_left,
-            my_provide=self.my_provide,
-            my_bid=self.my_bid,
-            my_ask=self.my_ask,
-            my_tax=self.my_tax,
-            my_rebate=self.my_rebate,
-            price=self.price
-            )
+    def add_balance(self, amount):
+        self.current_balance += amount
+        self.phase_profit += amount
+        self.period_profit += amount
+        self.total_profit += amount
 
 
 class Experimenter(object):
@@ -680,21 +676,24 @@ class Experimenter(object):
         if key is None:
             key = str(uuid.uuid4())
         self.key = key
+        self.session.experimenters[key] = self
 
 
 class Application(tornado.web.Application):
     """docstring for Application"""
-    def __init__(self, public_path):
+    def __init__(self, public_path, data_path):
         self.subjects = {}
         self.experimenters = {}
         self.sessions = {}
         self.groups = {}
         self.sockets = {}
         self.public_path = public_path
+        self.data_path = data_path
         _handlers = [
             (r'/client', handlers.ClientHandler),
             (r'/server', handlers.ServerHandler),
             (r'/socket', handlers.SocketHandler),
+            (r'/export', handlers.ExportHandler),
             (r'/', tornado.web.RedirectHandler, dict(url="/client")),
             (
                 r'/(.*)',
@@ -764,26 +763,66 @@ class Application(tornado.web.Application):
                     socket.timer = threading.Timer(s.time_left, socket.input_timeout)
                     socket.timer.start()
                 socket.send('continue_session', s)
-
-    def next_stage(self, session, group):
-        g = self.get_group(session, group)
-        if g.stage < 15:
-            session.period.start_stage(g, g.stage + 1)
+        for i, e in session.experimenters.items():
+            socket = self.get_socket(e.key)
+            if socket is not None:
+                socket.send('get_session', session)
 
     def proceed(self, session):
         period = self.get_current_period(session)
         waiting_groups = []
         finished_groups = []
         for (i, group) in period.groups.items():
-            subjects = session.get_subjects_by_group(i)
-            if len(list(s for s in subjects if Subject.states[s.state] == 'waiting')) == len(subjects):
-                waiting_groups.append(group.key)
-                if group.stage == 15:
-                    finished_groups.append(group.key)
+            subjects = session.get_subjects_by_group(group)
+            subjects = list(s for s in subjects if not s.is_suspended and not s.is_robot)
+            subjects_waiting = list(s for s in subjects if Subject.states[s.state] == 'waiting')
+            if len(subjects_waiting) == len(subjects):
+                if group.is_finished_period:
+                    finished_groups.append(group)
+                else:
+                    waiting_groups.append(group)
         if len(finished_groups) == len(period.groups):
             session.phase.next_period()
+            self.write_to_file(session)
             self.continue_session(session)
         elif len(waiting_groups) > 0:
             for group in waiting_groups:
-                self.next_stage(session, group)
+                group.next_stage()
                 self.continue_session(session, group)
+
+    @staticmethod
+    def to_dict(obj, classkey=None, ignores=None):
+        if ignores is not None and obj in ignores:
+            return None
+        elif isinstance(obj, dict):
+            data = {}
+            for (k, v) in obj.items():
+                data[k] = Application.to_dict(v, classkey, ignores)
+            return data
+        elif isinstance(obj, list):
+            data = []
+            for v in obj:
+                data.append(Application.to_dict(v, classkey, ignores))
+            return data
+        elif hasattr(obj, "_ast"):
+            return Application.to_dict(obj._ast())
+        elif hasattr(obj, "__dict__"):
+            igs = [obj]
+            if ignores is not None:
+                igs.extend(ignores)
+            data = dict([(key, Application.to_dict(value, classkey, igs))
+                        for key, value in obj.__dict__.items()
+                        if not callable(value) and not key.startswith('_')])
+            if classkey is not None and hasattr(obj, "__class__"):
+                data[classkey] = obj.__class__.__name__
+            return data
+        else:
+            return obj
+
+    def write_to_file(self, session):
+        if not os.path.exists(self.data_path):
+            os.makedirs(self.data_path)
+        with open(os.path.join(self.data_path, 'session-' + session.key + '.json'), 'w') as f:
+            d = self.to_dict(session)
+            j = json.dumps(d, indent=4)
+            f.write(j)

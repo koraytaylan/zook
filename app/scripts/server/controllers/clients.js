@@ -10,19 +10,6 @@ app.controller('ClientsCtrl', [ '$scope', 'SocketService', function ($scope, soc
     $scope.reverse = false;
 
     $scope.Math = window.Math;
-/*
-    socket.onMessage(function (message) {
-        if (message.type === 'set_subject'
-                || message.type === 'initialize') {
-            $scope.getSubjects();
-        }
-    });
-*/
-
-    $scope.setError = function (errorMessage) {
-        $scope.showError = true;
-        $scope.errorMessage = errorMessage;
-    };
 
     $scope.getSubjects = function () {
         $scope.isLoading = true;
@@ -36,16 +23,12 @@ app.controller('ClientsCtrl', [ '$scope', 'SocketService', function ($scope, soc
 
     $scope.suspend = function (key) {
         $scope.isLoading = true;
-        socket.send('suspend_subject', key).then(function (message) {
+        socket.send('suspend_subject', key).then(function () {
             $scope.isLoading = false;
-            if (message.isError) {
-                $scope.setError(message.data);
-            } else {
-                $scope.getSubjects();
-            }
+            $scope.getSubjects();
         });
     };
-
+/*
     $scope.$on('authorized', function () {
         $scope.getSubjects();
     });
@@ -53,22 +36,17 @@ app.controller('ClientsCtrl', [ '$scope', 'SocketService', function ($scope, soc
     if (socket.isInitialized) {
         $scope.getSubjects();
     }
-/*
-    socket.onInitialize(function () {
-        $scope.getSubjects();
-    });
-*/
+
     $scope.$on('socket-initialized', function () {
         $scope.getSubjects();
     });
+*/
 
     $scope.$on('socket-received', function (event, message) {
-        if (message.type === 'set_subject'
-                || message.type === 'get_subject'
-                || message.type === 'start_session'
-                || message.type === 'stop_session'
-                || message.type === 'continue_session') {
-            $scope.getSubjects();
+        if (message.type === 'set_session'
+                || message.type === 'get_session') {
+            $scope.session = message.data;
         }
+        $scope.$apply();
     });
 }]);

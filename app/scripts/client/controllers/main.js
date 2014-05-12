@@ -106,13 +106,15 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', '$interval
     });
 
     $scope.$on('socket-received', function (event, message) {
+        var data = null,
+            title = null;
         if (message.type === 'get_subject'
                 || message.type === 'set_subject'
                 || message.type === 'continue_session') {
-            var data = message.data;
-            $scope.subject = $.extend($scope.subject, data);
-            $scope.session = $scope.subject.session;
-            $scope.group = $scope.subject.group;
+            data = message.data;
+            $scope.subject = data;
+            $scope.session = data.session;
+            $scope.group = data.group;
 
             switch ($scope.subject.state_name) {
             case 'initial':
@@ -125,7 +127,6 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', '$interval
                 timerStop();
                 break;
             case 'active':
-                //console.log('active');
                 $scope.isInitialized = true;
                 $scope.isWaiting = false;
                 if ($scope.subject.time_left > 0) {
@@ -134,22 +135,19 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', '$interval
                     timerStart();
                 }
                 break;
+            case 'robot':
+                $scope.isInitialized = true;
+                $scope.isWaiting = true;
+                timerStop();
+                break;
             default:
                 $scope.isWaiting = true;
                 break;
             }
-            $scope.$apply();
         }
-    });
-
-    $scope.$on('socket-closed', function () {
-        $scope.isWaiting = false;
-    });
-
-    $scope.$watch('group.stage', function () {
-        if ($scope.group.stage >= 0) {
-            var title = '';
+        if ($scope.group !== null && $scope.group.stage >= 0) {
             if ($scope.session.phase !== null) {
+                title = '';
                 title += 'Phase: ' + $scope.session.phase.key;
                 if ($scope.session.period !== null) {
                     title += ', Period: ' + $scope.session.period.key;
@@ -157,11 +155,16 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', '$interval
                         title += ', Stage: ' + $scope.group.stage;
                     }
                 }
-            }
-            if (title !== '') {
-                $scope.title = 'Phase: ' + $scope.session.phase.key + ', Period: ' + $scope.session.period.key + ', Stage: ' + $scope.group.stage;
+                if (title !== '') {
+                    $scope.title = 'Phase: ' + $scope.session.phase.key + ', Period: ' + $scope.session.period.key + ', Stage: ' + $scope.group.stage;
+                }
             }
         }
+        $scope.$apply();
+    });
+
+    $scope.$on('socket-closed', function () {
+        $scope.isWaiting = false;
     });
 
     $scope.startPriceTimer = function () {
@@ -180,7 +183,7 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', '$interval
                 }
                 $scope.subject.my_ask += 0.1;
             }
-        }, $scope.session.input_step_time * 1000 / 3, $scope.session.input_step_max);
+        }, $scope.session.input_step_time * 1000, $scope.session.input_step_max);
     };
 
     $scope.$on('$destroy', function () {

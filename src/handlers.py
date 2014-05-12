@@ -1,7 +1,7 @@
 import zook
 import tornado.websocket
 import time
-import simplejson as json
+import json
 import uuid
 import codecs
 import os
@@ -10,46 +10,8 @@ import traceback
 import logging
 import threading
 import re
-
-
-def to_dict(obj, classkey=None, ignores=None):
-    if ignores is not None and obj in ignores:
-        return None
-    elif isinstance(obj, dict):
-        data = {}
-        for (k, v) in obj.items():
-            data[k] = to_dict(v, classkey, ignores)
-        return data
-    elif isinstance(obj, list):
-        data = []
-        for v in obj:
-            data.append(to_dict(v, classkey, ignores))
-        return data
-    elif hasattr(obj, "_ast"):
-        return to_dict(obj._ast())
-    elif hasattr(obj, "__dict__"):
-        igs = [obj]
-        if ignores is not None:
-            igs.extend(ignores)
-        data = dict([(key, to_dict(value, classkey, igs))
-                    for key, value in obj.__dict__.items()
-                    if not callable(value) and not key.startswith('_')])
-        if classkey is not None and hasattr(obj, "__class__"):
-            data[classkey] = obj.__class__.__name__
-        return data
-    # elif hasattr(obj, "__iter__"):
-    #    return [to_dict(v, classkey, ignores) for v in obj]
-    else:
-        return obj
-
-
-if __name__ == "__main__":
-    s = zook.Session()
-    p = zook.Phase(s, 0)
-    pp = zook.Period(p, 0)
-    g = zook.Group(pp, 0)
-    ss = zook.Subject(s)
-    print(json.dumps(to_dict(ss)))
+import openpyxl
+from collections import OrderedDict
 
 
 class ClientHandler(tornado.web.RequestHandler):
@@ -70,6 +32,60 @@ class ServerHandler(tornado.web.RequestHandler):
         self.write(read_data)
 
 
+class ExportHandler(tornado.web.RequestHandler):
+    """docstring for ExportHandler"""
+    def get(self):
+        key = self.get_argument('key')
+        self.render(key)
+        file_name = 'session-' + key + '.xlsx'
+        path = os.path.join(self.application.data_path, file_name)
+        buf_size = 4096
+        self.set_header('Content-Type', 'application/octet-stream')
+        self.set_header('Content-Disposition', 'attachment; filename=' + file_name)
+        with open(path, 'rb') as f:
+            while True:
+                data = f.read(buf_size)
+                if not data:
+                    break
+                self.write(data)
+        self.finish()
+
+    def render(self, key):
+        wb = openpyxl.Workbook(encoding='utf-8')
+        ws = wb.active
+        path_json = os.path.join(self.application.data_path, 'session-' + key + '.json')
+        path_xlsx = os.path.join(self.application.data_path, 'session-' + key + '.xlsx')
+        data = None
+        with open(path_json, 'r') as f:
+            data = json.load(f)
+        ws['A3'] = 'Name'
+        ws['B3'] = 'Total Profit'
+        ws['C3'] = 'Balance'
+        ws['D3'] = 'Suspended'
+        phases = OrderedDict(sorted(data['phases'].items(), key=lambda t: t[0]))
+        for i, ph in enumerate(phases.values()):
+            row = 0
+            col = 4
+            ws.cell(row=row, column=i+col).value = 'Phase ' + str(ph['key'])
+            periods = OrderedDict(sorted(ph['periods'].items(), key=lambda t: t[0]))
+            for j, pe in enumerate(periods.values()):
+                row = 1
+                ws.cell(row=row, column=i+col).value = 'Period ' + str(pe['key'])
+        for i, s in enumerate(data['subjects'].values()):
+            ws.cell(row=i+3, column=0).value = s['name']
+            ws.cell(row=i+3, column=1).value = s['total_profit']
+            ws.cell(row=i+3, column=2).value = s['current_balance']
+            ws.cell(row=i+3, column=3).value = s['is_suspended'] or s['is_robot']
+        ws.column_dimensions['A'].width = 30
+        ws.column_dimensions['B'].width = 15
+        ws.column_dimensions['C'].width = 15
+        ws.column_dimensions['D'].width = 15
+        for row in ws['A1':'Z3']:
+            for cell in row:
+                cell.style.font.bold = True
+        wb.save(path_xlsx)
+
+
 class InvalidOperationException(Exception):
     pass
 
@@ -85,7 +101,6 @@ class InvalidMessageException(Exception):
 class SocketHandler(tornado.websocket.WebSocketHandler):
     """docstring for SocketHandler"""
     def open(self):
-        self.session = self.find_session()
         self.key = str(uuid.uuid4())
         self.application.sockets[self.key] = self
         self.is_initialized = False
@@ -169,13 +184,20 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         )
         if id is not None:
             m['id'] = id
-        m = to_dict(m)
+        m = self.application.to_dict(m)
         self.write_message(json.dumps(m))
 
     def notify(self, message_type, message, is_global=False):
-        for s in self.application.sockets.values():
-            if s is not self and (is_global or s.is_experimenter):
-                s.send(message_type, message)
+        ignore_list = (
+            'initialize',
+            'authorize',
+            'get_session'
+            )
+        if message_type not in ignore_list:
+            for e in self.session.experimenters.values():
+                socket = self.application.get_socket(e.key)
+                if socket is not self:
+                    socket.send('get_session', self.session)
 
     @staticmethod
     def check_data(message, keys=[]):
@@ -228,6 +250,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                 exp = self.application.get_experimenter(self.key)
                 if exp is not None:
                     self.is_experimenter = True
+                    self.session = exp.session
                 else:
                     sub = self.application.get_subject(self.key)
                     if sub is not None:
@@ -237,9 +260,11 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                                 'Your client has been suspended')
                         elif zook.Subject.states[sub.state] == 'dropped':
                             sub.restore_state()
+                    else:
+                        self.session = self.find_session()
 
         data['key'] = self.key
-        data['session'] = self.session.__dict__
+        data['session'] = self.session
         data['is_experimenter'] = self.is_experimenter
         self.is_initialized = True
         return data
@@ -367,6 +392,9 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
 
     def start_session(self, message):
         self.check_experimenter()
+        ss = self.session.get_subjects_by_active()
+        if len(ss) < 2:
+            raise InvalidOperationException('There should be at least 2 active clients to start a session')
         self.application.start_session(self.session)
         return self.session
 

@@ -11,6 +11,7 @@ app.controller('MainCtrl', [ '$scope', '$location', 'SocketService', function ($
         $scope.key = data.key;
         $scope.session = $.extend($scope.session, data.session);
         $scope.isAuthorized = data.is_experimenter;
+        //socket.send('get_session');
     });
 
     $scope.isActiveLocation = function (viewLocation) {
@@ -20,19 +21,34 @@ app.controller('MainCtrl', [ '$scope', '$location', 'SocketService', function ($
     $scope.authorize = function () {
         socket
             .send('authorize', {login: $scope.txtLogin, password: $scope.txtPassword})
-            .then(function () {
-                $scope.isAuthorized = true;
-                $scope.$broadcast('authorized');
-            });
+            .then(
+                function () {
+                    $scope.isAuthorized = true;
+                    $scope.$broadcast('authorized');
+                },
+                function (message) {
+                    $scope.$broadcast('message-box-open', {
+                        modal: true,
+                        content: message.data
+                    });
+                }
+            );
     };
 
     $scope.start = function () {
         socket
             .send('start_session')
-            .then(function (message) {
-                $scope.session = $.extend($scope.session, message.data);
-                console.dir($scope.session);
-            });
+            .then(
+                function (message) {
+                    $scope.session = $.extend($scope.session, message.data);
+                },
+                function (message) {
+                    $scope.$broadcast('message-box-open', {
+                        modal: true,
+                        content: message.data
+                    });
+                }
+            );
     };
 
     $scope.stop = function () {
@@ -47,4 +63,11 @@ app.controller('MainCtrl', [ '$scope', '$location', 'SocketService', function ($
         socket
             .send('skip_phase');
     };
+
+    $scope.$on('socket-received', function (event, message) {
+        if (message.type === 'get_session') {
+            $scope.session = $.extend($scope.session, message.data);
+        }
+        $scope.$apply();
+    });
 }]);

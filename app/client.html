@@ -59,6 +59,12 @@
                       <stage15 ng-switch-when="15"></stage15>
                     </div>
                   </div>
+
+                  <div ng-switch-when="robot">
+                    <p>You have incurred losses that wiped out the <strong>{{session.starting_balance | currency}}</strong>, and at least <strong>{{session.maximum_loss | currency}}</strong> losses since.</p>
+                    <p>We will forgive these losses, but it is critical to the experiment that we do not let you continue.</p>
+                    <p>As soon as we have arranged for the experiment to continue, we will come get you, pay you your <strong>{{session.show_up_fee | currency}}</strong> show-up fee, and have you sign a receipt.</p>
+                  </div>
                   
                   <div class="clearfix"></div>
                 </div>
@@ -70,7 +76,7 @@
                   </div>
                   <div class="btn-group pull-right">
                     <button type="button" class="btn btn-primary" ng-disabled="isWaiting" ng-click="continue()">
-                      <span class="{{ isWaiting && 'glyphicon glyphicon-refresh' || 'glyphicon glyphicon-ok'}}"></span> {{ isWaiting && 'Wait' || 'Continue' }}
+                      <span class="{{ isWaiting && 'glyphicon glyphicon-refresh' || 'glyphicon glyphicon-ok'}}"></span> {{ isWaiting && 'Wait' || (group.label_continue || 'Continue') }}
                     </button>
                   </div>
 

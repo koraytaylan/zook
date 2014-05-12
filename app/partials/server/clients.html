@@ -1,24 +1,30 @@
 <table class="table table-hover table-striped">
   <thead>
     <th><a ng-click="predicate = 'name'; reverse=!reverse">Name</a></th>
-    <th width="75" class="text-center"><a ng-click="predicate = 'current_balance'; reverse=!reverse">Balance</a></th>
+    <th width="75"><a ng-click="predicate = 'phase_profit'; reverse=!reverse">Phase Profit</a></th>
+    <th width="75"><a ng-click="predicate = 'period_profit'; reverse=!reverse">Period Profit</a></th>
+    <th width="75"><a ng-click="predicate = 'total_profit'; reverse=!reverse">Total Profit</a></th>
+    <th width="75"><a ng-click="predicate = 'current_balance'; reverse=!reverse">Current Balance</a></th>
     <th width="75" class="text-center"><a ng-click="predicate = 'group_key'; reverse=!reverse">Group</a></th>
     <th width="75" class="text-center"><a ng-click="predicate = 'role'; reverse=!reverse">Role</a></th>
-    <th width="75"><a ng-click="predicate = 'state'; reverse=!reverse">State</a></th>
     <th width="75"><a ng-click="predicate = 'group.stage'; reverse=!reverse">Stage</a></th>
+    <th width="75"><a ng-click="predicate = 'state'; reverse=!reverse">State</a></th>
     <th width="75"><a ng-click="predicate = 'is_suspended'; reverse=!reverse">Suspended</a></th>
     <th width="50"></th>
   </thead>
   <tbody>
-    <tr ng-repeat="s in subjects | orderBy:predicate:reverse track by s.key">
+    <tr ng-repeat="s in session.subjects | orderBy:predicate:reverse track by s.key">
       <td>{{s.name}}</td>
+      <td>{{s.phase_profit | currency}}</td>
+      <td>{{s.period_profit | currency}}</td>
+      <td>{{s.total_profit | currency}}</td>
       <td>{{s.current_balance | currency}}</td>
       <td class="text-center">{{s.group.key}}</td>
       <td class="text-center">{{s.role}}</td>
+      <td>{{s.group.stage_name}}</td>
       <td>
         <span class="label" ng-class="{'label-default': Math.floor(s.state/100)==0, 'label-success': Math.floor(s.state/100)==1} ">{{s.state_name}}</span>
       </td>
-      <td>{{s.group.stage_name}}</td>
       <td class="text-center">
         <span class="glyphicon glyphicon-ok" ng-if="s.is_suspended"></span>
       </td>
