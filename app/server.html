@@ -47,6 +47,9 @@
               <button type="button" class="btn btn-primary" ng-click="skipPhase()" ng-disabled="!session.is_started">
                 <span class="glyphicon glyphicon-forward"></span> Skip phase
               </button>
+              <a class="btn btn-primary" href="/export?key={{session.key}}" download="session-{{session.key}}.xlsx" ng-disabled="!session.is_started || (session.phase == 0 && session.period.key < 1)">
+                Export
+              </a>
             </div>
           </form>
           <ul class="nav navbar-nav navbar-right">

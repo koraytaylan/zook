@@ -58,31 +58,171 @@ class ExportHandler(tornado.web.RequestHandler):
         data = None
         with open(path_json, 'r') as f:
             data = json.load(f)
+        row = 0
+        headers = (
+            'Phase',
+            'Period',
+            'Unit Cost',
+            'Group',
+            'Quantity Initial',
+            'Quantity Reached',
+            'Direction',
+            'Up Covered',
+            'Down Covered',
+            'Coin Flip',
+            'Outcome',
+            'Subject',
+            'Role',
+            'Provide',
+            'Bid',
+            'Ask',
+            'Period Balance',
+            'Period Profit',
+            'Balance',
+            'Total Profit'
+        )
+        col = 0
+        for h in headers:
+            ws.cell(row=row, column=col).value = h
+            col += 1
+        for c in list(range(col)):
+            ws.cell(row=row, column=c).style.font.bold = True
+        ws.column_dimensions['A'].width = 10
+        ws.column_dimensions['B'].width = 10
+        ws.column_dimensions['C'].width = 10
+        ws.column_dimensions['D'].width = 10
+        ws.column_dimensions['E'].width = 10
+        ws.column_dimensions['F'].width = 10
+        ws.column_dimensions['G'].width = 10
+        ws.column_dimensions['H'].width = 10
+        row += 1
+        col = 0
+        phases = OrderedDict(sorted(data['phases'].items(), key=lambda t: int(t[0])))
+        for i, ph in enumerate(phases.values()):
+            row_start_ph = row
+            c = ws.cell(row=row, column=0)
+            c.style.alignment.horizontal = 'center'
+            c.style.alignment.vertical = 'center'
+            c.value = ph['key']
+            periods = OrderedDict(sorted(ph['periods'].items(), key=lambda t: int(t[0])))
+            for j, pe in enumerate(periods.values()):
+                row_start_pe = row
+                self.set_cell_value(ws, row, 1, pe['key'], True)
+                self.set_cell_value(ws, row, 2, pe['cost'], True)
+                groups = OrderedDict(sorted(pe['groups'].items(), key=lambda t: int(t[0])))
+                for k, g in enumerate(groups.values()):
+                    row_start_g = row
+                    self.set_cell_value(ws, row, 3, g['key'], True)
+                    self.set_cell_value(ws, row, 4, g['quantity_initial'], True)
+                    self.set_cell_value(ws, row, 5, g['quantity_reached'], True)
+                    self.set_cell_value(ws, row, 6, g['direction'], True)
+                    self.set_cell_value(ws, row, 7, g['up_covered'], True)
+                    self.set_cell_value(ws, row, 8, g['down_covered'], True)
+                    self.set_cell_value(ws, row, 9, g['coin_flip'], True)
+                    self.set_cell_value(ws, row, 10, g['outcome'], True)
+                    subjects = OrderedDict(sorted(g['subjects'].items(), key=lambda t: t[1]['name']))
+                    for s in subjects.values():
+                        col = 11
+                        cells = self.generate_row(ph, pe, g, s)
+                        for c in cells:
+                            ws.cell(row=row, column=col).value = c
+                            col += 1
+                        row += 1
+                    ws.merge_cells(start_row=row_start_g, start_column=3, end_row=row - 1, end_column=3)
+                    ws.merge_cells(start_row=row_start_g, start_column=4, end_row=row - 1, end_column=4)
+                    ws.merge_cells(start_row=row_start_g, start_column=5, end_row=row - 1, end_column=5)
+                    ws.merge_cells(start_row=row_start_g, start_column=6, end_row=row - 1, end_column=6)
+                    ws.merge_cells(start_row=row_start_g, start_column=7, end_row=row - 1, end_column=7)
+                    ws.merge_cells(start_row=row_start_g, start_column=8, end_row=row - 1, end_column=8)
+                    ws.merge_cells(start_row=row_start_g, start_column=9, end_row=row - 1, end_column=9)
+                    ws.merge_cells(start_row=row_start_g, start_column=10, end_row=row - 1, end_column=10)
+                ws.merge_cells(start_row=row_start_pe, start_column=1, end_row=row - 1, end_column=1)
+                ws.merge_cells(start_row=row_start_pe, start_column=2, end_row=row - 1, end_column=2)
+            ws.merge_cells(start_row=row_start_ph, start_column=0, end_row=row - 1, end_column=0)
+        wb.save(path_xlsx)
+
+    def set_cell_value(self, ws, row, column, value, centered=False):
+        c = ws.cell(row=row, column=column)
+        if centered:
+            c.style.alignment.horizontal = 'center'
+            c.style.alignment.vertical = 'center'
+        c.value = value
+
+    def generate_row(self, ph, pe, g, s):
+        role = None
+        provide = None
+        bid = None
+        ask = None
+        period_profit = None
+        period_balance = None
+        if s['key'] in g['roles']:
+            role = g['roles'][s['key']]
+        if s['key'] in g['provides']:
+            provide = g['provides'][s['key']]
+        if s['key'] in g['bids']:
+            bid = g['bids'][s['key']]
+        if s['key'] in g['asks']:
+            ask = g['asks'][s['key']]
+        if s['key'] in pe['balances']:
+            period_balance = pe['balances'][s['key']]
+        if s['key'] in pe['profits']:
+            period_profit = pe['profits'][s['key']]
+        row = (
+            s['name'],
+            role,
+            provide,
+            bid,
+            ask,
+            period_balance,
+            period_profit,
+            s['current_balance'],
+            s['total_profit']
+        )
+        return row
+
+    def render_(self, key):
+        wb = openpyxl.Workbook(encoding='utf-8')
+        ws = wb.active
+        path_json = os.path.join(self.application.data_path, 'session-' + key + '.json')
+        path_xlsx = os.path.join(self.application.data_path, 'session-' + key + '.xlsx')
+        data = None
+        with open(path_json, 'r') as f:
+            data = json.load(f)
         ws['A3'] = 'Name'
-        ws['B3'] = 'Total Profit'
-        ws['C3'] = 'Balance'
+        ws['B3'] = 'Balance'
+        ws['C3'] = 'Total Profit'
         ws['D3'] = 'Suspended'
-        phases = OrderedDict(sorted(data['phases'].items(), key=lambda t: t[0]))
+        phases = OrderedDict(sorted(data['phases'].items(), key=lambda t: int(t[0])))
+        row = 0
+        col = 4
         for i, ph in enumerate(phases.values()):
             row = 0
-            col = 4
-            ws.cell(row=row, column=i+col).value = 'Phase ' + str(ph['key'])
-            periods = OrderedDict(sorted(ph['periods'].items(), key=lambda t: t[0]))
+            ws.cell(row=row, column=col).value = 'Phase ' + str(ph['key'])
+            periods = OrderedDict(sorted(ph['periods'].items(), key=lambda t: int(t[0])))
             for j, pe in enumerate(periods.values()):
                 row = 1
-                ws.cell(row=row, column=i+col).value = 'Period ' + str(pe['key'])
+                ws.cell(row=row, column=col).value = 'Period ' + str(pe['key'])
+                ws.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col+4)
+                row = 2
+                ws.cell(row=row, column=col).value = 'Cost'
+                ws.cell(row=row, column=col+1).value = 'Profit'
+                ws.cell(row=row, column=col+2).value = 'Provide'
+                ws.cell(row=row, column=col+3).value = 'Bid'
+                ws.cell(row=row, column=col+4).value = 'Ask'
+                col += 5
+            #col += len(periods) + 4 + i
         for i, s in enumerate(data['subjects'].values()):
             ws.cell(row=i+3, column=0).value = s['name']
-            ws.cell(row=i+3, column=1).value = s['total_profit']
-            ws.cell(row=i+3, column=2).value = s['current_balance']
+            ws.cell(row=i+3, column=1).value = s['current_balance']
+            ws.cell(row=i+3, column=2).value = s['total_profit']
             ws.cell(row=i+3, column=3).value = s['is_suspended'] or s['is_robot']
         ws.column_dimensions['A'].width = 30
         ws.column_dimensions['B'].width = 15
         ws.column_dimensions['C'].width = 15
         ws.column_dimensions['D'].width = 15
-        for row in ws['A1':'Z3']:
-            for cell in row:
-                cell.style.font.bold = True
+        for r in list(range(3)):
+            for c in list(range(col)):
+                ws.cell(row=r, column=c).style.font.bold = True
         wb.save(path_xlsx)
 
 
@@ -103,6 +243,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
     def open(self):
         self.key = str(uuid.uuid4())
         self.application.sockets[self.key] = self
+        self.session = self.find_session()
         self.is_initialized = False
         self.is_experimenter = False
         self.timer = None
