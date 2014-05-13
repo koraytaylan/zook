@@ -43,3 +43,4 @@ app/bower_components
 
 data
 .idea
+nohup*

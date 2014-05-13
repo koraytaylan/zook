@@ -149,7 +149,7 @@ module.exports = function (grunt) {
                     {
                         expand: true,
                         cwd: 'dist',
-                        src: ['*.html', 'views/{,*/}*.html'],
+                        src: ['*.html', 'partials/{,*/}*.html'],
                         dest: 'dist'
                     }
                 ]
@@ -167,7 +167,7 @@ module.exports = function (grunt) {
                         src: [
                             '*.{ico,png,txt}',
                             '*.html',
-                            'views/{,*/}*.html',
+                            'partials/{,*/}*.html',
                             'images/{,*/}*.{webp}',
                             'fonts/*'
                         ]
