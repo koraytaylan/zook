@@ -206,11 +206,11 @@ class Phase(object):
     def start(self):
         ss = self.session.get_subjects_by_active()
         for s in ss:
-            self.balances[s.key] = s.current_balance
-            self.phase_profit = 0
             if self.key == 0:
                 s.total_profit = 0
                 s.current_balance = self.session.starting_balance
+            self.balances[s.key] = s.current_balance
+            self.phase_profit = 0
         self.session.phase = self
         p = Period(self, 0)
         p.start()
@@ -406,7 +406,7 @@ class Group(object):
                         if rpIn == rp:
                             break
                         rpIn = rp
-                        if session.AValueUp[param_set][s.role][rp + 0.5] > period.cost:
+                        if session.AValueUp[param_set][s.role][int(rp + 0.5)] > period.cost:
                             rp += sp
                         if rpIn == rp:
                             break

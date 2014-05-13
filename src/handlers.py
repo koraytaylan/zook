@@ -62,83 +62,50 @@ class ExportHandler(tornado.web.RequestHandler):
         headers = (
             'Phase',
             'Period',
-            'Unit Cost',
             'Group',
-            'Quantity Initial',
-            'Quantity Reached',
-            'Direction',
-            'Up Covered',
-            'Down Covered',
-            'Coin Flip',
-            'Outcome',
             'Subject',
+            'UnitCost',
+            'QuantityInitial',
+            'QuantityReached',
+            'Direction',
+            'UpCovered',
+            'DownCovered',
+            'CoinFlip',
+            'Outcome',
             'Role',
             'Provide',
             'Bid',
             'Ask',
-            'Period Balance',
-            'Period Profit',
+            'PeriodStartingBalance',
+            'PhaseStartingBalance',
             'Balance',
-            'Total Profit'
+            'PeriodProfit',
+            'PhaseProfit',
+            'TotalProfit'
         )
         col = 0
         for h in headers:
-            ws.cell(row=row, column=col).value = h
+            cell = ws.cell(row=row, column=col)
+            cell.value = h
+            cell.style.font.bold = True
+            # ws.column_dimensions[openpyxl.cell.get_column_letter(col + 1)].width = 15
             col += 1
-        for c in list(range(col)):
-            ws.cell(row=row, column=c).style.font.bold = True
-        ws.column_dimensions['A'].width = 10
-        ws.column_dimensions['B'].width = 10
-        ws.column_dimensions['C'].width = 10
-        ws.column_dimensions['D'].width = 10
-        ws.column_dimensions['E'].width = 10
-        ws.column_dimensions['F'].width = 10
-        ws.column_dimensions['G'].width = 10
-        ws.column_dimensions['H'].width = 10
         row += 1
         col = 0
         phases = OrderedDict(sorted(data['phases'].items(), key=lambda t: int(t[0])))
         for i, ph in enumerate(phases.values()):
-            row_start_ph = row
-            c = ws.cell(row=row, column=0)
-            c.style.alignment.horizontal = 'center'
-            c.style.alignment.vertical = 'center'
-            c.value = ph['key']
             periods = OrderedDict(sorted(ph['periods'].items(), key=lambda t: int(t[0])))
             for j, pe in enumerate(periods.values()):
-                row_start_pe = row
-                self.set_cell_value(ws, row, 1, pe['key'], True)
-                self.set_cell_value(ws, row, 2, pe['cost'], True)
                 groups = OrderedDict(sorted(pe['groups'].items(), key=lambda t: int(t[0])))
                 for k, g in enumerate(groups.values()):
-                    row_start_g = row
-                    self.set_cell_value(ws, row, 3, g['key'], True)
-                    self.set_cell_value(ws, row, 4, g['quantity_initial'], True)
-                    self.set_cell_value(ws, row, 5, g['quantity_reached'], True)
-                    self.set_cell_value(ws, row, 6, g['direction'], True)
-                    self.set_cell_value(ws, row, 7, g['up_covered'], True)
-                    self.set_cell_value(ws, row, 8, g['down_covered'], True)
-                    self.set_cell_value(ws, row, 9, g['coin_flip'], True)
-                    self.set_cell_value(ws, row, 10, g['outcome'], True)
                     subjects = OrderedDict(sorted(g['subjects'].items(), key=lambda t: t[1]['name']))
                     for s in subjects.values():
-                        col = 11
+                        col = 0
                         cells = self.generate_row(ph, pe, g, s)
                         for c in cells:
                             ws.cell(row=row, column=col).value = c
                             col += 1
                         row += 1
-                    ws.merge_cells(start_row=row_start_g, start_column=3, end_row=row - 1, end_column=3)
-                    ws.merge_cells(start_row=row_start_g, start_column=4, end_row=row - 1, end_column=4)
-                    ws.merge_cells(start_row=row_start_g, start_column=5, end_row=row - 1, end_column=5)
-                    ws.merge_cells(start_row=row_start_g, start_column=6, end_row=row - 1, end_column=6)
-                    ws.merge_cells(start_row=row_start_g, start_column=7, end_row=row - 1, end_column=7)
-                    ws.merge_cells(start_row=row_start_g, start_column=8, end_row=row - 1, end_column=8)
-                    ws.merge_cells(start_row=row_start_g, start_column=9, end_row=row - 1, end_column=9)
-                    ws.merge_cells(start_row=row_start_g, start_column=10, end_row=row - 1, end_column=10)
-                ws.merge_cells(start_row=row_start_pe, start_column=1, end_row=row - 1, end_column=1)
-                ws.merge_cells(start_row=row_start_pe, start_column=2, end_row=row - 1, end_column=2)
-            ws.merge_cells(start_row=row_start_ph, start_column=0, end_row=row - 1, end_column=0)
         wb.save(path_xlsx)
 
     def set_cell_value(self, ws, row, column, value, centered=False):
@@ -155,6 +122,8 @@ class ExportHandler(tornado.web.RequestHandler):
         ask = None
         period_profit = None
         period_balance = None
+        phase_profit = None
+        phase_balance = None
         if s['key'] in g['roles']:
             role = g['roles'][s['key']]
         if s['key'] in g['provides']:
@@ -167,15 +136,32 @@ class ExportHandler(tornado.web.RequestHandler):
             period_balance = pe['balances'][s['key']]
         if s['key'] in pe['profits']:
             period_profit = pe['profits'][s['key']]
+        if s['key'] in ph['balances']:
+            phase_balance = ph['balances'][s['key']]
+        if s['key'] in ph['profits']:
+            phase_profit = ph['profits'][s['key']]
         row = (
+            ph['key'],
+            pe['key'],
+            g['key'],
             s['name'],
+            pe['cost'],
+            g['quantity_initial'],
+            g['quantity_reached'],
+            g['direction'],
+            g['up_covered'],
+            g['down_covered'],
+            g['coin_flip'],
+            g['outcome'],
             role,
             provide,
             bid,
             ask,
             period_balance,
-            period_profit,
+            phase_balance,
             s['current_balance'],
+            period_profit,
+            phase_profit,
             s['total_profit']
         )
         return row
