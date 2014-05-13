@@ -92,6 +92,61 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', '$interval
             );
     };
 
+    $scope.startPriceTimer = function () {
+        if ($scope.priceTimer !== null) {
+            $interval.cancel($scope.priceTimer);
+        }
+        $scope.priceTimer = $interval(function () {
+            if ($scope.group.stage === 8) {
+                if ($scope.subject.my_bid === -1) {
+                    $scope.subject.my_bid = 0;
+                }
+                $scope.subject.my_bid += 0.1;
+            } else if ($scope.group.stage === 13) {
+                if ($scope.subject.my_ask === -1) {
+                    $scope.subject.my_ask = 0;
+                }
+                $scope.subject.my_ask += 0.1;
+            }
+        }, $scope.session.input_step_time * 1000, $scope.session.input_step_max);
+    };
+
+    $scope.getBid = function () {
+        if ($scope.subject.my_bid < 0) {
+            return 0;
+        }
+        return $scope.subject.my_bid;
+    };
+    $scope.getAsk = function () {
+        if ($scope.subject.my_ask < 0) {
+            return 0;
+        }
+        return $scope.subject.my_ask;
+    };
+
+    $scope.range = function (start, end) {
+        var array = [],
+            i = start;
+        for (i; i < end; i += 1) {
+            array.push(i);
+        }
+        return array;
+    };
+
+    $scope.totalValue = function (quatity) {
+        var s = $scope.session,
+            vs = s.AValues,
+            ps = s.AValuesParamSets[s.phase.key][s.period.key];
+        return vs[ps][$scope.subject.role][quatity];
+    };
+
+    $scope.incrementalValue = function (quantity) {
+        var s = $scope.session,
+            vus = s.AValueUp,
+            ps = s.AValuesParamSets[s.phase.key][s.period.key];
+        return vus[ps][$scope.subject.role][quantity - 1];
+    };
+
     $scope.$on('socket-initialized', function (event, message) {
         $scope.session = $.extend($scope.session, message.data.session);
         socket.send('get_subject');
@@ -164,39 +219,7 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', '$interval
         $scope.isWaiting = false;
     });
 
-    $scope.startPriceTimer = function () {
-        if ($scope.priceTimer !== null) {
-            $interval.cancel($scope.priceTimer);
-        }
-        $scope.priceTimer = $interval(function () {
-            if ($scope.group.stage === 8) {
-                if ($scope.subject.my_bid === -1) {
-                    $scope.subject.my_bid = 0;
-                }
-                $scope.subject.my_bid += 0.1;
-            } else if ($scope.group.stage === 13) {
-                if ($scope.subject.my_ask === -1) {
-                    $scope.subject.my_ask = 0;
-                }
-                $scope.subject.my_ask += 0.1;
-            }
-        }, $scope.session.input_step_time * 1000, $scope.session.input_step_max);
-    };
-
     $scope.$on('$destroy', function () {
         $interval.cancel($scope.priceTimer);
     });
-
-    $scope.getBid = function () {
-        if ($scope.subject.my_bid < 0) {
-            return 0;
-        }
-        return $scope.subject.my_bid;
-    };
-    $scope.getAsk = function () {
-        if ($scope.subject.my_ask < 0) {
-            return 0;
-        }
-        return $scope.subject.my_ask;
-    };
 }]);

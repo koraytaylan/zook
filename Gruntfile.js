@@ -15,7 +15,8 @@ module.exports = function (grunt) {
                 files: ['app/scripts/{,*/}*.js'],
                 options: {
                     livereload: true
-                }
+                },
+                tasks: ['build', 'compile']
             },
             styles: {
                 files: ['app/styles/{,*/}*.css'],
@@ -149,21 +150,10 @@ module.exports = function (grunt) {
                     {
                         expand: true,
                         cwd: 'dist',
-                        src: ['*.html'],
+                        src: ['*.html', 'partials/{,*/}*.html'],
                         dest: 'dist'
                     }
                 ]
-            }
-        },
-
-        ngmin: {
-            dist: {
-                files: [{
-                    expand: true,
-                    cwd: '.tmp/concat/scripts',
-                    src: '*.js',
-                    dest: '.tmp/concat/scripts'
-                }]
             }
         },
 
@@ -227,31 +217,36 @@ module.exports = function (grunt) {
 
     grunt.registerTask('serve', function (target) {
         if (target === 'dist') {
-            return grunt.task.run(['build']);
+            return grunt.task.run([
+                'compile',
+                'bgShell:server_dist',
+                'watch'
+            ]);
         }
         grunt.task.run([
-            'clean:server',
-            'bowerInstall',
-            'concurrent:server',
-            target === 'dist' ? 'bgShell:server_dist' : 'bgShell:server',
+            'build',
+            'bgShell:server',
             'watch'
         ]);
     });
 
     grunt.registerTask('build', [
+        'clean:server',
+        'bowerInstall',
+        'concurrent:server',
+    ]);
+
+    grunt.registerTask('compile', [
         'clean:dist',
         'bowerInstall',
         'useminPrepare',
         'concurrent:dist',
         'concat',
-        //'ngmin',
         'copy:dist',
         'cssmin',
         'uglify',
         'rev',
         'usemin',
-        'htmlmin',
-        'bgShell:server_dist',
-        'watch'
+        'htmlmin'
     ]);
 };

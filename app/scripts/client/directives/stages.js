@@ -8,28 +8,6 @@ app.directive('stage0', [ function () {
         scope: false,
         templateUrl: 'partials/client/stage0.html',
         controller: function ($scope) {
-            $scope.range = function (start, end) {
-                var array = [],
-                    i = start;
-                for (i; i < end; i += 1) {
-                    array.push(i);
-                }
-                return array;
-            };
-
-            $scope.totalValue = function (quatity) {
-                var s = $scope.session,
-                    vs = s.AValues,
-                    ps = s.AValuesParamSets[s.phase.key][s.period.key];
-                return vs[ps][$scope.subject.role][quatity];
-            };
-
-            $scope.incrementalValue = function (quantity) {
-                var s = $scope.session,
-                    vus = s.AValueUp,
-                    ps = s.AValuesParamSets[s.phase.key][s.period.key];
-                return vus[ps][$scope.subject.role][quantity - 1];
-            };
         }
     };
 }]);
