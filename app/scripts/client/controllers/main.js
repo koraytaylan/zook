@@ -150,11 +150,9 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', '$interval
     $scope.$on('socket-initialized', function (event, message) {
         $scope.session = $.extend($scope.session, message.data.session);
         socket.send('get_subject');
-        console.log('client socket initialized');
     });
 
     $scope.$on('socket-received', function (event, message) {
-        console.log('client socket received', message);
         var data = null,
             title = null;
         if (message.type === 'get_subject'
