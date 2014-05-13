@@ -6,8 +6,10 @@ import os
 
 
 def main(argv):
+    port = 8080
     public_path = 'app'
     if len(argv) > 0 and argv[0] == 'dist':
+        port = 80
         public_path = 'dist'
     data_path = 'data'
     public_path = os.path.join(
@@ -26,7 +28,7 @@ def main(argv):
         )
     app = Application(public_path, data_path)
     http_server = tornado.httpserver.HTTPServer(app)
-    http_server.listen(8080)
+    http_server.listen(port)
     ioloop = tornado.ioloop.IOLoop.instance()
     ioloop.start()
 

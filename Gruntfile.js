@@ -81,7 +81,7 @@ module.exports = function (grunt) {
         },
 
         useminPrepare: {
-            html: ['app/client.html', 'app/admin.html'],
+            html: ['app/client.html', 'app/server.html'],
             options: {
                 dest: 'dist',
                 flow: {
@@ -106,7 +106,7 @@ module.exports = function (grunt) {
 
         cssmin: {
             options: {
-                root: 'app'
+                //root: 'app'
             }
         },
 
@@ -149,10 +149,21 @@ module.exports = function (grunt) {
                     {
                         expand: true,
                         cwd: 'dist',
-                        src: ['*.html', 'partials/{,*/}*.html'],
+                        src: ['*.html'],
                         dest: 'dist'
                     }
                 ]
+            }
+        },
+
+        ngmin: {
+            dist: {
+                files: [{
+                    expand: true,
+                    cwd: '.tmp/concat/scripts',
+                    src: '*.js',
+                    dest: '.tmp/concat/scripts'
+                }]
             }
         },
 
@@ -208,7 +219,7 @@ module.exports = function (grunt) {
                 bg: true
             },
             server_dist: {
-                cmd: 'python3 src/main.py dist',
+                cmd: 'python src/main.py dist',
                 bg: true
             }
         }
@@ -233,6 +244,7 @@ module.exports = function (grunt) {
         'useminPrepare',
         'concurrent:dist',
         'concat',
+        //'ngmin',
         'copy:dist',
         'cssmin',
         'uglify',

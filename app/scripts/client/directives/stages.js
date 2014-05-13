@@ -64,23 +64,12 @@ app.directive('stage7', [ function () {
     };
 }]);
 
-app.directive('stage8', [ '$timeout', function ($timeout) {
+app.directive('stage8', [ function () {
     return {
         restrict: 'E',
         scope: false,
         templateUrl: 'partials/client/stage8.html',
-        controller: function ($scope, $timeout) {
-            /*$timeout(function () {
-                $scope.subject.price += $scope.session.input_step_size;
-            }, $scope.session.input_step_time * 1000);*/
-            $scope.getBid = function () {
-                if ($scope.subject.my_bid < 0) {
-                    return 0;
-                }
-                return $scope.subject.my_bid;
-            };
-
-            $scope.startPriceTimer();
+        controller: function ($scope) {
         }
     };
 }]);
@@ -110,22 +99,7 @@ app.directive('stage13', [ '$interval', function ($interval) {
         restrict: 'E',
         scope: false,
         templateUrl: 'partials/client/stage13.html',
-        controller: function ($scope, $interval) {
-            /*$scope.timer = $interval(function () {
-                $scope.subject.price += $scope.session.input_step_size;
-            }, $scope.session.input_step_time * 1000);
-
-            $scope.$on('$destroy', function () {
-                $interval.cancel($scope.timer);
-            });*/
-            $scope.getAsk = function () {
-                if ($scope.subject.my_ask < 0) {
-                    return 0;
-                }
-                return $scope.subject.my_ask;
-            };
-
-            $scope.startPriceTimer();
+        controller: function ($scope) {
         }
     };
 }]);

@@ -155,7 +155,7 @@ class Session(object):
     def start(self):
         self.is_started = True
         self.is_finished = False
-        for (i, s) in self.subjects.items():
+        for s in self.get_subjects_by_active():
             s.set_state('active')
         self.phase = Phase(self, 0)
         self.phase.start()

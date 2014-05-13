@@ -39,7 +39,6 @@
                         <input id="txtClientName" ng-model="subject.name" type="text" class="form-control">
                       </div>
                     </form>
-                    <div class="alert alert-danger" ng-show="showError">{{errorMessage}}</div>
                   </div>
 
                   <div ng-switch-when="waiting">
@@ -123,15 +122,17 @@
     <!-- endbower -->
     <!-- endbuild -->
 
-    <!-- build:js({.tmp,app}) scripts/scripts.js -->
+    <!-- build:js({.tmp,app}) scripts/scripts-client.js -->
     <script src="scripts/client/app.js"></script>
     <script src="scripts/services/log.js"></script>
     <script src="scripts/services/socket.js"></script>
-    <script src="scripts/client/directives/wait.js"></script>
-    <script src="scripts/client/directives/stages.js"></script>
+    <script src="scripts/controllers/connection.js"></script>
+    <script src="scripts/controllers/message-box.js"></script>
     <script src="scripts/directives/connection.js"></script>
     <script src="scripts/directives/message-box.js"></script>
     <script src="scripts/client/controllers/main.js"></script>
+    <script src="scripts/client/directives/wait.js"></script>
+    <script src="scripts/client/directives/stages.js"></script>
     <!-- endbuild -->
     
   </body>

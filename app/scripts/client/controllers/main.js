@@ -92,20 +92,14 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', '$interval
             );
     };
 
-    $scope.testMessageBox = function () {
-        $scope.$broadcast('message-box', {
-            title: 'Test title',
-            content: 'Test content',
-            modal: true
-        });
-    };
-
     $scope.$on('socket-initialized', function (event, message) {
         $scope.session = $.extend($scope.session, message.data.session);
         socket.send('get_subject');
+        console.log('client socket initialized');
     });
 
     $scope.$on('socket-received', function (event, message) {
+        console.log('client socket received', message);
         var data = null,
             title = null;
         if (message.type === 'get_subject'
@@ -133,6 +127,9 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', '$interval
                     $scope.answerCountdown = $scope.subject.time_left;
                     timerClear();
                     timerStart();
+                    if ($scope.group.stage === 8 || $scope.group.stage === 13) {
+                        $scope.startPriceTimer();
+                    }
                 }
                 break;
             case 'robot':
@@ -189,4 +186,17 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', '$interval
     $scope.$on('$destroy', function () {
         $interval.cancel($scope.priceTimer);
     });
+
+    $scope.getBid = function () {
+        if ($scope.subject.my_bid < 0) {
+            return 0;
+        }
+        return $scope.subject.my_bid;
+    };
+    $scope.getAsk = function () {
+        if ($scope.subject.my_ask < 0) {
+            return 0;
+        }
+        return $scope.subject.my_ask;
+    };
 }]);

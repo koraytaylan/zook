@@ -4,7 +4,7 @@
 
 var app = angular.module('zook', []);
 
-app.filter('currency', function ($filter) {
+app.filter('currency', ['$filter', function ($filter) {
     return function (amount) {
         var isNegative = amount < 0;
         if (isNegative) {
@@ -13,4 +13,4 @@ app.filter('currency', function ($filter) {
         return (isNegative ? '-$' : '$')
             + $filter('number')(amount, 2);
     };
-});
+}]);
