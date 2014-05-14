@@ -854,7 +854,7 @@ class Application(tornado.web.Application):
         return gro
 
     def clone_experimenter(self, experimenter):
-        exp = experimenter.__dict__
+        exp = copy.copy(experimenter.__dict__)
         exp.pop('session', None)
         return exp
 
