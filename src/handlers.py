@@ -565,7 +565,8 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         subject = self.application.get_subject(self.key)
         subject.set_state('waiting')
         self.application.proceed(self.session)
-        self.send('continue_session', subject)
+        sub = self.application.clone_subject(subject)
+        self.send('continue_session', sub)
 
     def process_input(self):
         subject = self.application.get_subject(self.key)
