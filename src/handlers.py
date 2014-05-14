@@ -12,6 +12,8 @@ import threading
 import re
 import openpyxl
 from collections import OrderedDict
+import jsonpickle
+import copy
 
 
 class ClientHandler(tornado.web.RequestHandler):
@@ -311,8 +313,9 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         )
         if id is not None:
             m['id'] = id
-        m = self.application.to_dict(m)
-        self.write_message(json.dumps(m))
+        # m = self.application.to_dict(m)
+        # self.write_message(json.dumps(m))
+        self.write_message(jsonpickle.encode(m, unpicklable=True))
 
     def notify(self, message_type, message, is_global=False):
         ignore_list = (
@@ -427,7 +430,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             if subject is None:
                 subject = zook.Subject(self.session, self.key)
                 self.application.set_subject(subject)
-        return subject
+        return self.application.clone_subject(subject)
 
     def get_subjects(self, message):
         self.check_experimenter()
@@ -538,7 +541,8 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         if self.session.is_started:
             self.process_input()
             self.application.proceed(self.session)
-        return subject
+        s = self.application.clone_subject(subject)
+        return s
 
     def set_timer(self, seconds, func, args=None):
         self.timer_started_at = int(time.time() * 1000)
