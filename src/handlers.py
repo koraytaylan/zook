@@ -329,7 +329,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         if message_type not in ignore_list:
             for e in self.session.experimenters.values():
                 socket = self.application.get_socket(e.key)
-                if socket is not self:
+                if socket is not None and socket is not self:
                     ses = self.application.clone_session(self.session)
                     socket.send('get_session', ses)
 
