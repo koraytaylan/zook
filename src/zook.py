@@ -226,8 +226,8 @@ class Phase(object):
             self.session.period.finish()
         if self.is_skipped:
             self.session.next_phase()
-        elif (self.session.phase.key == 0 and self.session.period.key < 12) \
-                or (self.session.phase.key > 0 and self.session.period.key < 24):
+        elif (self.session.phase.key == 0 and self.session.period.key < 11) \
+                or (self.session.phase.key > 0 and self.session.period.key < 23):
             p = Period(self, self.session.period.key + 1)
             p.start()
         else:
