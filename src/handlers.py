@@ -314,8 +314,11 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         if id is not None:
             m['id'] = id
         # m = self.application.to_dict(m)
-        # self.write_message(json.dumps(m))
-        self.write_message(jsonpickle.encode(m, unpicklable=True))
+        js = json.dumps(m)
+        self.write_message(js)
+        del m
+        del js
+        # self.write_message(jsonpickle.encode(m, unpicklable=True))
 
     def notify(self, message_type, message, is_global=False):
         ignore_list = (
@@ -327,7 +330,8 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             for e in self.session.experimenters.values():
                 socket = self.application.get_socket(e.key)
                 if socket is not self:
-                    socket.send('get_session', self.session)
+                    ses = self.application.clone_session(self.session)
+                    socket.send('get_session', ses)
 
     @staticmethod
     def check_data(message, keys=[]):
@@ -394,13 +398,14 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                         self.session = self.find_session()
 
         data['key'] = self.key
-        data['session'] = self.session
+        data['session'] = self.application.clone_session(self.session)
         data['is_experimenter'] = self.is_experimenter
         self.is_initialized = True
         return data
 
     def get_session(self, message):
-        return self.session
+        ses = self.application.clone_session(self.session)
+        return ses
 
     def get_group(self, message):
         group = None
@@ -526,12 +531,14 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         if len(ss) < 2:
             raise InvalidOperationException('There should be at least 2 active clients to start a session')
         self.application.start_session(self.session)
-        return self.session
+        ses = self.application.clone_session(self.session)
+        return ses
 
     def stop_session(self, message):
         self.check_experimenter()
         self.application.stop_session(self.session)
-        return self.session
+        ses = self.application.clone_session(self.session)
+        return ses
 
     def continue_session(self, message):
         self.check_data(message)

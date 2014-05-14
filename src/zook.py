@@ -768,41 +768,107 @@ class Application(tornado.web.Application):
                 socket.send('continue_session', sub)
         for i, e in session.experimenters.items():
             socket = self.get_socket(e.key)
+            ses = self.clone_session(session)
             if socket is not None:
-                socket.send('get_session', session)
+                socket.send('get_session', ses)
 
-    def clone_subject(self, subject):
-        session = subject.session
-        sub = copy.copy(subject)
-        ses = copy.copy(session)
-        ses.subjects = None
-        ses.experimenters = None
-        ses.phases = None
-        ses.periods = None
-        ses.groups = None
-        if session.phase is not None:
-            pha = copy.copy(session.phase)
-            pha.session = None
-            pha.periods = None
-            pha.balances = None
-            pha.profits = None
-            ses.phase = pha
-        if session.period is not None:
-            per = copy.copy(session.period)
-            per.groups = None
-            per.balances = None
-            per.profits = None
-            ses.period = per
-        if subject.group is not None:
-            gro = copy.copy(subject.group)
-            gro.period = None
-            gro.subjects = None
-            gro.roles = None
-            gro.bids = None
-            gro.asks = None
-            gro.provides = None
-            sub.group = gro
-        sub.session = ses
+    def clone_session(self, session, include_phases=True, include_periods=True, include_groups=True, include_subjects=True, include_experimenters=True):
+        ses = copy.copy(session.__dict__)
+        if include_subjects:
+            ses['subjects'] = copy.copy(ses['subjects'])
+            ses['subjects'] = {
+                k: self.clone_subject(v, False)
+                for (k, v) in ses['subjects'].items()
+            }
+        else:
+            ses.pop('subjects', None)
+        if include_experimenters:
+            ses['experimenters'] = copy.copy(ses['experimenters'])
+            ses['experimenters'] = {
+                k: self.clone_experimenter(v)
+                for (k, v) in ses['experimenters'].items()
+            }
+        else:
+            ses.pop('experimenters', None)
+        if include_phases:
+            ses['phases'] = copy.copy(ses['phases'])
+            ses['phases'] = {
+                k: self.clone_phase(v, include_periods, include_subjects)
+                for (k, v) in ses['phases'].items()
+            }
+        else:
+            ses.pop('phases', None)
+        if ses['phase'] is not None:
+            ses['phase'] = self.clone_phase(ses['phase'], include_periods, include_groups)
+        if ses['period'] is not None:
+            ses['period'] = self.clone_period(ses['period'], include_groups)
+        return ses
+
+    def clone_phase(self, phase, include_periods=True, include_groups=True, include_subjects=True):
+        pha = copy.copy(phase.__dict__)
+        pha.pop('session', None)
+        if include_periods:
+            pha['periods'] = copy.copy(pha['periods'])
+            pha['periods'] = {
+                k: self.clone_period(v, include_groups, include_subjects)
+                for (k, v) in pha['periods'].items()
+            }
+        else:
+            pha.pop('periods', None)
+        if not include_subjects:
+            pha.pop('balances', None)
+            pha.pop('profits', None)
+        return pha
+
+    def clone_period(self, period, include_groups=True, include_subjects=True):
+        per = copy.copy(period.__dict__)
+        per.pop('phase', None)
+        if include_groups:
+            per['groups'] = copy.copy(per['groups'])
+            per['groups'] = {
+                k: self.clone_group(v, include_subjects)
+                for (k, v) in per['groups'].items()
+            }
+        else:
+            per.pop('groups', None)
+        if not include_subjects:
+            per.pop('balances', None)
+            per.pop('profits', None)
+        return per
+
+    def clone_group(self, group, include_subjects=True):
+        gro = copy.copy(group.__dict__)
+        gro.pop('period', None)
+        if include_subjects:
+            gro['subjects'] = copy.copy(gro['subjects'])
+            gro['subjects'] = {
+                k: self.clone_subject(v, False, False)
+                for (k, v) in gro['subjects'].items()
+            }
+        else:
+            gro.pop('subjects', None)
+            gro.pop('roles', None)
+            gro.pop('bids', None)
+            gro.pop('asks', None)
+            gro.pop('provides', None)
+        return gro
+
+    def clone_experimenter(self, experimenter):
+        exp = experimenter.__dict__
+        exp.pop('session', None)
+        return exp
+
+    def clone_subject(self, subject, include_session=True, include_group=True):
+        sub = copy.copy(subject.__dict__)
+        if include_session:
+            sub['session'] = self.clone_session(sub['session'], False, False, False, False, False)
+        else:
+            sub.pop('session', None)
+        if include_group:
+            if sub['group'] is not None:
+                sub['group'] = self.clone_group(sub['group'])
+        else:
+            sub.pop('group', None)
         return sub
 
     def proceed(self, session):
@@ -858,6 +924,7 @@ class Application(tornado.web.Application):
         if not os.path.exists(self.data_path):
             os.makedirs(self.data_path)
         with open(os.path.join(self.data_path, 'session-' + session.key + '.json'), 'w') as f:
-            d = self.to_dict(session)
+            #d = self.to_dict(session)
+            d = self.clone_session(session)
             j = json.dumps(d, sort_keys=True)
             f.write(j)
