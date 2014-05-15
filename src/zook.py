@@ -438,8 +438,8 @@ class Group(object):
                 if not_integer and group.some_refund == 1:
                     s.my_cost_unit = s.my_provide - 0.5 / group.sum_halvers
                 s.my_cost = period.cost * s.my_cost_unit
-                param = session.AValuesParamSets[ph][pe]
-                s.tent_profit = session.AValues[param][s.role][group.quantity_reached] - s.my_cost
+                s.my_value = session.AValues[param_set][s.role][group.quantity_reached]
+                s.tent_profit = s.my_value - s.my_cost
                 s.period_profit = s.tent_profit
                 s.total_profit += s.period_profit
                 s.current_balance += s.period_profit
@@ -462,8 +462,9 @@ class Group(object):
                     group.direction = session.ADirectionPhase1[pe]
                     group.quantity_up = group.quantity_initial + 1
                     group.quantity_down = group.quantity_initial - 1
-                s.value_up = session.AValueUp[session.AValuesParamSets[ph][pe]][s.role][group.quantity_initial]
-                s.value_down = session.AValueUp[session.AValuesParamSets[ph][pe]][s.role][group.quantity_down]
+                vus = session.AValueUp[param_set][s.role]
+                s.value_up = vus[group.quantity_initial]
+                s.value_down = vus[group.quantity_down]
             group.stage = 5
         elif group.stage == 6:
             return self.next_stage()
@@ -602,6 +603,7 @@ class Subject(object):
         self.role = 0
 
         self.my_cost = 0
+        self.my_value = 0
         self.my_bid = -1
         self.my_ask = -1
         self.my_tax = -1

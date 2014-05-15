@@ -5,7 +5,7 @@
   <p ng-switch-when="3">Three members' provisions were reduced by 1/6 to yield an integer sum; each paid 1/3 of the last unit cost.</p>
   <p ng-switch-when="5">Five members' provisions were reduced by 1/10 to yield an integer sum; each paid 2/5 of a unit’s cost, for the last two units produced.</p>
 </ng-switch>
-<p>The value to you of {{group.quantity_reached}} units of Zook is <strong>{{session.AValues[session.AValuesParamSets[session.phase.key][session.period.key]][subject.role][group.quantity_reached] | currency}}</strong>. From this your cost of providing {{subject.my_cost_unit | number:1}}, <strong>{{subject.my_cost | currency}}</strong>, is subtracted.</p>
+<p>The value to you of {{group.quantity_reached}} units of Zook is <strong>{{subject.my_value | currency}}</strong>. From this your cost of providing {{subject.my_cost_unit | number:1}}, <strong>{{subject.my_cost | currency}}</strong>, is subtracted.</p>
 <p>Your profit this period{{(session.phase.key == 2 || session.period.key % 2 == 0) && ', at this point,' || ''}} is <strong>{{subject.period_profit | currency}}</strong>, your earnings so far are <strong>{{subject.total_profit | currency}}</strong>.</p>
 <p>Your bank balance is currently <strong>{{subject.current_balance | currency}}</strong>.</p>
 <p ng-if="session.phase.key == 2 || session.period.key % 2 == 0">We will next consider {{group.direction > -1 && 'increasing to ' + group.quantity_up || 'decreasing to ' + group.quantity_down}} units.</p>
