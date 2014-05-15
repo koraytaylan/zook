@@ -1,0 +1,148 @@
+name: zook
+fieldTypes: [
+    { name: name, type: string, size: 100, nullable: true },
+    { name: type, type: int, default: 0 }
+]
+models: [
+    {
+        type: abstract,
+        name: entry,
+        fields: [
+            { name: id, key: true, type: bigint, sequential: true },
+            { name: data, type: json, nullable: true, order: -1 }
+        ]
+    },
+    {
+        type: abstract,
+        name: struct,
+        inherits: entry,
+        fields: [
+            { type: name, indexed: true },
+            { type: type }
+        ]
+    },
+    {
+        name: session,
+        inherits: entry,
+        fields: [
+            { name: key, type: uuid, indexed: true },
+            { name: cost_low, type: float, default: 3.0 },
+            { name: cost_high, type: float, default: 5.5 },
+            { name: quantity_max, type: int, default: 10 },
+            { name: time_for_input, type: int, default: 0 },
+            { name: time_for_result, type: int, default: 0 },
+            { name: time_for_preparation, type: int, default: 0 },
+            { name: group_size, type: int, default: 6 },
+            { name: group_count, type: int, default: 3 },
+            { name: starting_balance, type: float, default: 12.0 },
+            { name: show_up_fee, type: float, default: 5.0 },
+            { name: maximum_loss, type: float, default: 20.0 },
+            { name: input_min, type: float, default: 0 },
+            { name: input_max, type: float, default: 4.0 },
+            { name: input_step_size, type: float, default: 0.1 },
+            { name: input_step_time, type: int, default: 1 },
+            { name: AInitQ, type: "int[12]" },
+            { name: ADirectionPhase1, type: "int[12]" },
+            { name: AValuesParamSets, type: "int[4][24]" },
+            { name: AValues, type: "float[4][6][11]" },
+            { name: AValueUp, type: "float[4][6][11]" },
+            { name: is_started, type: bool },
+            { name: is_finished, type: bool }
+        ],
+        references: [
+            { to: phase },
+            { to: period }
+        ]
+    },
+    {
+        name: phase,
+        inherits: entry,
+        fields: [
+            { name: key, type: int, default: 0, indexed: true },
+            { name: is_skipped, type: bool }
+        ],
+        references: [
+            { to: session }
+        ]
+    },
+    {
+        name: period,
+        inherits: entry,
+        fields: [
+            { name: key, type: int, default: 0, indexed: true },
+            { name: cost, type: float, default: 0 }
+        ],
+        references: [
+            { to: phase }
+        ]
+    },
+    {
+        name: subject_group,
+        inherits: entry,
+        fields: [
+            { name: key, type: int, default: 0, indexed: true },
+            { name: stage, type: int, default: 0 },
+            { name: direction, type: int, default: 0 },
+            { name: quantity_initial, type: int, default: 0 },
+            { name: quantity_reached, type: int, default: 0 },
+            { name: quantity_up, type: int, default: 0 },
+            { name: quantity_down, type: int, default: 0 },
+            { name: bid_diff_up, type: float, default: 222 },
+            { name: bid_diff_down, type: float, default: 222 },
+            { name: up_covered, type: int, default: -2 },
+            { name: sum_provides, type: float, default: 0 },
+            { name: sum_halvers, type: int, default: 0 },
+            { name: sum_bids, type: float, default: 0 },
+            { name: sum_asks, type: float, default: 0 },
+            { name: coin_flip, type: int, default: 0 },
+            { name: outcome, type: int, default: 0 },
+            { name: label_continue, type: string, default: Continue },
+            { name: is_finished, type: bool }
+        ]
+    },
+    {
+        name: subject,
+        inherits: entry,
+        fields: [
+            { type: name },
+            { name: previous_state, type: int, default: 0 },
+            { name: state, type: int, default: 0 },
+            { name: role, type: int },
+            { name: my_cost, type: float, default: 0 },
+            { name: my_bid, type: float, default: -1 },
+            { name: my_ask, type: float, default: -1 },
+            { name: my_tax, type: float, default: -1 },
+            { name: my_rebate, type: float, default: -1 },
+            { name: my_provide, type: float, default: -1 },
+            { name: current_balance, type: float, default: 0 },
+            { name: tent_profit, type: float, default: 0 },
+            { name: period_profit, type: float, default: 0 },
+            { name: phase_profit, type: float, default: 0 },
+            { name: total_profit, type: float, default: 0 },
+            { name: aft_profit, type: float, default: 0 },
+            { name: example_cost, type: float, default: 0 },
+            { name: default_provide, type: float, default: 0 },
+            { name: time_left, type: float, default: 0 },
+            { name: value_up, type: float, default: 0 },
+            { name: value_down, type: float, default: 0 },
+            { name: is_initialized, type: bool },
+            { name: is_suspended, type: bool },
+            { name: is_robot, type: bool }
+        ],
+        references: [
+            { to: session },
+            { to: subject_group }
+        ]
+    },
+    {
+        name: subject_balance,
+        inherits: entry,
+        fields: [
+            { name: amount, type: float, default: 0 }
+        ],
+        references: [
+            { to: subject },
+            { to: session }
+        ]
+    }
+]

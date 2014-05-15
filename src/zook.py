@@ -36,7 +36,6 @@ class Session(object):
         self.period = None
         self.is_started = False
         self.is_finished = False
-        self.is_all_ready = False
 
         self.cost_low = 3.0
         self.cost_high = 5.5
@@ -381,7 +380,6 @@ class Group(object):
         ss = session.get_subjects_by_group(group)
         ss = list(s for s in ss if s.session == session and s.is_active())
         for i, s in enumerate(ss):
-            s.is_participating = True
             s.time_left = 0
             s.set_state('active')
 
@@ -597,8 +595,6 @@ class Subject(object):
         self.previous_state = 1
         self.state = 1
         self.state_name = Subject.states[self.state]
-        self.previous_status = 0
-        self.status = 0
         self.is_suspended = False
         self.is_robot = False
         self.is_initialized = False
@@ -606,23 +602,24 @@ class Subject(object):
         self.role = 0
 
         self.my_cost = 0
+        self.my_bid = -1
+        self.my_ask = -1
+        self.my_tax = -1
+        self.my_rebate = -1
+        self.my_provide = None
+
+        self.current_balance = 0
+
         self.tent_profit = 0
         self.period_profit = 0
         self.phase_profit = 0
         self.total_profit = 0
         self.aft_profit = 0
-        self.current_balance = 0
-        self.my_bid = -1
-        self.my_ask = -1
-        self.my_tax = -1
-        self.my_rebate = -1
 
         self.example_cost = 0
-        self.my_provide = None
         self.default_provide = 0
 
         self.time_left = 0
-        self.is_participating = True
 
         self.value_up = 0
         self.value_down = 0
