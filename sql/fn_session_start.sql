@@ -1,11 +1,15 @@
 ﻿create or replace function fn_session_start(key uuid) returns session as $$
 <<fn>>
 declare
-    ses session;
+    s session;
+    ss subject;
 begin
-    update session
-        set is_started = true,
-            is_finished = false
-    return ses;
+    select * into ss from fn_session_get_subjects(key);
+    update session s
+            set s.is_started = true,
+                s.is_finished = false
+        where s.key = key
+        returning s.* into s;
+    return s;
 end
 $$ language plpgsql;
