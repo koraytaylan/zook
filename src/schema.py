@@ -156,6 +156,7 @@ class Model(SchemaObject):
             for k in rm.get_key_fields():
                 kk = copy.copy(k)
                 kk.name = '_'.join([r.name or r.to, kk.name])
+                kk.sequential = False
                 rfs.append(kk)
         return rfs
 
