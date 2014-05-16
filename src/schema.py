@@ -65,7 +65,7 @@ class Reference(SchemaObject):
         self.name = ''
         self.to = None
         self.key = False
-        self.nullable = False
+        self.nullable = True
         self.indexed = False
         self.unique = False
         SchemaObject.__init__(self, model, d)
@@ -130,6 +130,13 @@ class Model(SchemaObject):
                 x.fields.append(f.name)
             x.unique = f.unique
             xs.append(x)
+        rs = self.get_reference_fields()
+        for r in (r for r in rs if r.indexed or r.unique):
+            x = Index(self)
+            if r.name not in x.fields:
+                x.fields.append(r.name)
+            x.unique = r.unique
+            xs.append(x)
         if len(self.indexes) > 0:
             xs.extend(self.indexes)
         return xs
@@ -157,6 +164,9 @@ class Model(SchemaObject):
                 kk = copy.copy(k)
                 kk.name = '_'.join([r.name or r.to, kk.name])
                 kk.sequential = False
+                kk.nullable = r.nullable or k.nullable
+                kk.indexed = r.indexed or k.indexed
+                kk.unique = r.unique or k.unique
                 rfs.append(kk)
         return rfs
 
@@ -197,6 +207,8 @@ class Model(SchemaObject):
                 b.append(f.type)
         if f.nullable is False:
             b.append('not null')
+            if f.type == 'bool' and f.default is None:
+                f.default = 'false'
         if f.default is not None:
             wrap = ''
             if f.type == 'string' or f.type == 'text':
@@ -238,7 +250,10 @@ class Model(SchemaObject):
         b = []
         xs = self.get_indexes()
         for x in xs:
-            b.append('create index ix_{0}_{1} on {0} ({2});'.format(self.name, '_'.join(x.fields), ', '.join(x.fields)))
+            prefix = 'index ix'
+            if x.unique:
+                prefix = 'unique index ux'
+            b.append('create {0}_{1}_{2} on {1} ({3});'.format(prefix, self.name, '_'.join(x.fields), ', '.join(x.fields)))
         return '\n'.join(b)
 
     def render(self, include_references=True, include_indexes=True):
