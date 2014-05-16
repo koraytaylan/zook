@@ -44,7 +44,7 @@ class Field(SchemaObject):
 
     def __init__(self, model, d=None):
         self.model = model
-        self.name = 'field'
+        self.name = None
         self.type = 'string'
         self.size = 100
         self.nullable = False
@@ -172,7 +172,6 @@ class Model(SchemaObject):
         return fs
 
     def render_field(self, f):
-        b = [f.name]
         ft = next((ft for ft in self.schema.field_types if ft.name == f.type), None)
         if ft is not None:
             f = copy.copy(f)
@@ -182,6 +181,7 @@ class Model(SchemaObject):
             f.nullable = f.nullable or ft.nullable
             f.indexed = f.indexed or ft.indexed
             f.unique = f.unique or ft.unique
+        b = [f.name]
         if f.sequential:
             if f.type == 'bigint':
                 b.append('bigserial')
