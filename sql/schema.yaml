@@ -150,6 +150,17 @@ models: [
         ]
     },
     {
+        name: subject_response,
+        inherits: entry,
+        fields: [
+            { name: response_time, type: int, default: 0 }
+        ],
+        references: [
+            { to: subject },
+            { to: period }
+        ]
+    },
+    {
         name: option,
         fields: [
             { name: name, type: string, key: true },
