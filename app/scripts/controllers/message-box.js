@@ -20,7 +20,7 @@ app.controller('MessageBoxCtrl', [ '$scope', function ($scope) {
     $scope.$on('message-box-open', function (event, message) {
         $scope.isActive = true;
         $scope.mode = message.mode || 'info';
-        $scope.title = message.title || 'Message';
+        $scope.title = message.title || (message.mode == 'error' && 'Error') || 'Message';
         $scope.content = message.content;
         $scope.isModal = message.modal || message.isModal;
     });

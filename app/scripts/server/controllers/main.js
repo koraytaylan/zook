@@ -11,7 +11,6 @@ app.controller('MainCtrl', [ '$scope', '$location', 'SocketService', function ($
         $scope.key = data.key;
         $scope.session = $.extend($scope.session, data.session);
         $scope.isAuthorized = data.is_experimenter;
-        //socket.send('get_session');
     });
 
     $scope.isActiveLocation = function (viewLocation) {
@@ -29,15 +28,16 @@ app.controller('MainCtrl', [ '$scope', '$location', 'SocketService', function ($
                 function (message) {
                     $scope.$broadcast('message-box-open', {
                         modal: true,
+                        mode: 'error',
                         content: message.data
                     });
                 }
             );
     };
 
-    $scope.start = function () {
+    var sessionAction = function (action) {
         socket
-            .send('start_session')
+            .send(action)
             .then(
                 function (message) {
                     $scope.session = $.extend($scope.session, message.data);
@@ -45,23 +45,31 @@ app.controller('MainCtrl', [ '$scope', '$location', 'SocketService', function ($
                 function (message) {
                     $scope.$broadcast('message-box-open', {
                         modal: true,
+                        mode: 'error',
                         content: message.data
                     });
                 }
             );
     };
 
+    $scope.start = function () {
+        sessionAction('start_session');
+    };
+
+    $scope.pause = function () {
+        sessionAction('pause_session');
+    };
+
+    $scope.resume = function () {
+        sessionAction('resume_session');
+    };
+
     $scope.stop = function () {
-        socket
-            .send('stop_session')
-            .then(function (message) {
-                $scope.session = $.extend($scope.session, message.data);
-            });
+        sessionAction('stop_session');
     };
 
     $scope.skipPhase = function () {
-        socket
-            .send('skip_phase');
+        sessionAction('skip_phase');
     };
 
     $scope.$on('socket-received', function (event, message) {

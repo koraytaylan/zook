@@ -86,6 +86,7 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', '$interval
                     $scope.isWaiting = false;
                     $scope.$broadcast('message-box-open', {
                         modal: true,
+                        mode: 'error',
                         content: message.data
                     });
                 }
@@ -96,19 +97,21 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', '$interval
         if ($scope.priceTimer !== null) {
             $interval.cancel($scope.priceTimer);
         }
-        $scope.priceTimer = $interval(function () {
-            if ($scope.group.stage === 8) {
-                if ($scope.subject.my_bid === -1) {
-                    $scope.subject.my_bid = 0;
+        if ($scope.group !== null) {
+            $scope.priceTimer = $interval(function () {
+                if ($scope.group.stage === 8) {
+                    if ($scope.subject.my_bid === -1) {
+                        $scope.subject.my_bid = 0;
+                    }
+                    $scope.subject.my_bid += 0.1;
+                } else if ($scope.group.stage === 13) {
+                    if ($scope.subject.my_ask === -1) {
+                        $scope.subject.my_ask = 0;
+                    }
+                    $scope.subject.my_ask += 0.1;
                 }
-                $scope.subject.my_bid += 0.1;
-            } else if ($scope.group.stage === 13) {
-                if ($scope.subject.my_ask === -1) {
-                    $scope.subject.my_ask = 0;
-                }
-                $scope.subject.my_ask += 0.1;
-            }
-        }, $scope.session.input_step_time * 1000, $scope.session.input_step_max);
+            }, $scope.session.input_step_time * 1000, $scope.session.input_step_max);
+        }
     };
 
     $scope.getBid = function () {
@@ -154,7 +157,9 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', '$interval
 
     $scope.$on('socket-received', function (event, message) {
         var data = null,
-            title = null;
+            title = null,
+            time_left = null,
+            current_price = 0;
         if (message.type === 'get_subject'
                 || message.type === 'set_subject'
                 || message.type === 'continue_session') {
@@ -164,6 +169,10 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', '$interval
             $scope.group = data.group;
 
             switch ($scope.subject.state_name) {
+            case 'passive':
+                $scope.isInitialized = false;
+                $scope.isWaiting = true;
+                break;
             case 'initial':
                 $scope.isInitialized = false;
                 $scope.isWaiting = false;
@@ -177,12 +186,22 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', '$interval
                 $scope.isInitialized = true;
                 $scope.isWaiting = false;
                 if ($scope.subject.time_left > 0) {
-                    $scope.answerCountdown = $scope.subject.time_left;
+                    time_left = parseInt(($scope.subject.time_up - new Date().getTime()) / 1000);
+                    if (time_left <= 0) {
+                        time_left = 1;
+                    }
+                    $scope.answerCountdown = time_left;
                     timerClear();
                     timerStart();
                     if ($scope.group.stage === 8 || $scope.group.stage === 13) {
                         $scope.startPriceTimer();
                     }
+                }
+                current_price = ($scope.session.input_step_max * $scope.session.input_step_size) - (parseInt(time_left / $scope.session.input_step_time) * $scope.session.input_step_size);
+                if ($scope.subject.group.stage === 8) {
+                    $scope.subject.my_bid = current_price;
+                } else if ($scope.subject.group.stage === 14) {
+                    $scope.subject.my_ask = current_price;
                 }
                 break;
             case 'robot':

@@ -31,6 +31,10 @@
                   <div class="clearfix"></div>
                 </div>
                 <div class="panel-body" ng-switch on="subject.state_name">
+                  <div ng-switch-when="passive">
+                    <wait ng-if="!session.is_started"></wait>
+                    <p ng-if="session.is_started">Session is already started. Clients can't join ongoing sessions.</p>
+                  </div>
 
                   <div ng-switch-when="initial">
                     <form role="form">
@@ -60,9 +64,14 @@
                   </div>
 
                   <div ng-switch-when="robot">
-                    <p>You have incurred losses that wiped out the <strong>{{session.starting_balance | currency}}</strong>, and at least <strong>{{session.maximum_loss | currency}}</strong> losses since.</p>
-                    <p>We will forgive these losses, but it is critical to the experiment that we do not let you continue.</p>
-                    <p>As soon as we have arranged for the experiment to continue, we will come get you, pay you your <strong>{{session.show_up_fee | currency}}</strong> show-up fee, and have you sign a receipt.</p>
+                    <div ng-if="subject.is_suspended">
+                      <p>Your client has been suspended.</p>
+                    </div>
+                    <div ng-if="!subject.is_suspended">
+                      <p>You have incurred losses that wiped out the <strong>{{session.starting_balance | currency}}</strong>, and at least <strong>{{session.maximum_loss | currency}}</strong> losses since.</p>
+                      <p>We will forgive these losses, but it is critical to the experiment that we do not let you continue.</p>
+                      <p>As soon as we have arranged for the experiment to continue, we will come get you, pay you your <strong>{{session.show_up_fee | currency}}</strong> show-up fee, and have you sign a receipt.</p>
+                    </div>
                   </div>
                   
                   <div class="clearfix"></div>

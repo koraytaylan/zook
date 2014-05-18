@@ -6,7 +6,12 @@
         <h4 class="modal-title">{{title}}</h4>
       </div>
       <div class="modal-body">
-        {{content}}
+        <pre ng-if="mode == 'error'">
+{{content}}
+        </pre>
+        <div ng-if="mode != 'error'">
+          {{content}}
+        </div>
       </div>
       <div class="modal-footer" ng-switch on="mode">
         <div ng-switch-default>

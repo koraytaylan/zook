@@ -1,19 +1,15 @@
 import zook
 import tornado.websocket
+import uuid
 import time
 import json
-import uuid
 import codecs
 import os
 import sys
 import traceback
-import logging
-import threading
 import re
 import openpyxl
 from collections import OrderedDict
-import jsonpickle
-import copy
 
 
 class ClientHandler(tornado.web.RequestHandler):
@@ -229,6 +225,7 @@ class InvalidMessageException(Exception):
 class SocketHandler(tornado.websocket.WebSocketHandler):
     """docstring for SocketHandler"""
     def open(self):
+        self.is_open = True
         self.key = str(uuid.uuid4())
         self.application.sockets[self.key] = self
         self.session = self.find_session()
@@ -238,6 +235,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         self.timer_started_at = None
 
     def on_close(self):
+        self.is_open = False
         if hasattr(self, 'key'):
             del self.application.sockets[self.key]
             s = self.application.get_subject(self.key)
@@ -285,6 +283,10 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                 reply = self.suspend_subject(o)
             elif message_type == 'start_session':
                 reply = self.start_session(o)
+            elif message_type == 'pause_session':
+                reply = self.pause_session(o)
+            elif message_type == 'resume_session':
+                reply = self.resume_session(o)
             elif message_type == 'stop_session':
                 reply = self.stop_session(o)
             elif message_type == 'continue_session':
@@ -313,12 +315,10 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         )
         if id is not None:
             m['id'] = id
-        # m = self.application.to_dict(m)
         js = json.dumps(m)
         self.write_message(js)
         del m
         del js
-        # self.write_message(jsonpickle.encode(m, unpicklable=True))
 
     def notify(self, message_type, message, is_global=False):
         ignore_list = (
@@ -329,7 +329,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         if message_type not in ignore_list:
             for e in self.session.experimenters.values():
                 socket = self.application.get_socket(e.key)
-                if socket is not None and socket is not self:
+                if socket is not None and socket.is_open and e.key is not self.key:
                     ses = self.application.clone_session(self.session)
                     socket.send('get_session', ses)
 
@@ -353,8 +353,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         session = None
         if len(self.application.sessions) > 0:
             session = next(
-                (s for s in self.application.sessions.values()
-                    if s.is_started is False),
+                (s for s in self.application.sessions.values()),
                 None
                 )
         if session is None:
@@ -376,7 +375,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             key = self.parse_key(message['data'])
             if key is not None:
                 socket = self.application.get_socket(key)
-                if socket is not None:
+                if socket is not None and socket.is_open:
                     socket.close()
                 del self.application.sockets[self.key]
                 self.key = key
@@ -389,10 +388,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                     sub = self.application.get_subject(self.key)
                     if sub is not None:
                         self.session = sub.session
-                        if sub.is_suspended:
-                            raise InvalidOperationException(
-                                'Your client has been suspended')
-                        elif zook.Subject.states[sub.state] == 'dropped':
+                        if zook.Subject.states[sub.state] == 'dropped':
                             sub.restore_state()
                     else:
                         self.session = self.find_session()
@@ -487,7 +483,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         key = message['data']
         socket = self.application.get_socket(key)
         subject = self.application.get_subject(key)
-        if socket is not None:
+        if socket is not None and socket.is_open:
             socket.close()
         if subject is not None:
             del self.session.subjects[key]
@@ -499,13 +495,14 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         self.check_data(message)
         self.check_experimenter()
         key = message['data']
-        socket = self.application.get_socket(key)
         subject = self.application.get_subject(key)
-        if socket is not None:
-            socket.close()
         if subject is not None:
             subject.is_suspended = True
-            subject.set_state('passive')
+            subject.set_state('robot')
+            socket = self.application.get_socket(key)
+            if socket is not None and socket.is_open:
+                sub = self.application.clone_subject(subject)
+                socket.send('get_subject', sub)
             return True
         else:
             return False
@@ -534,6 +531,22 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         ses = self.application.clone_session(self.session)
         return ses
 
+    def pause_session(self, message):
+        self.check_experimenter()
+        if not self.session.is_started:
+            raise InvalidOperationException('Session is not started')
+        self.application.pause_session(self.session)
+        ses = self.application.clone_session(self.session)
+        return ses
+
+    def resume_session(self, message):
+        self.check_experimenter()
+        if not self.session.is_started:
+            raise InvalidOperationException('Session is not paused')
+        self.application.resume_session(self.session)
+        ses = self.application.clone_session(self.session)
+        return ses
+
     def stop_session(self, message):
         self.check_experimenter()
         self.application.stop_session(self.session)
@@ -542,31 +555,14 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
 
     def continue_session(self, message):
         self.check_data(message)
-        self.clear_timer()
         self.set_subject(message)
         subject = self.application.get_subject(self.key)
         if self.session.is_started:
+            self.application.clear_timer(self.key)
             self.process_input()
             self.application.proceed(self.session)
         s = self.application.clone_subject(subject)
         return s
-
-    def set_timer(self, seconds, func, args=None):
-        self.timer_started_at = int(time.time() * 1000)
-        self.timer = threading.Timer(seconds, func, args)
-        self.timer.start()
-
-    def clear_timer(self):
-        if self.timer is not None:
-            self.timer.cancel()
-            self.timer_started_at = None
-
-    def input_timeout(self):
-        subject = self.application.get_subject(self.key)
-        subject.set_state('waiting')
-        self.application.proceed(self.session)
-        sub = self.application.clone_subject(subject)
-        self.send('continue_session', sub)
 
     def process_input(self):
         subject = self.application.get_subject(self.key)
@@ -592,4 +588,5 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         self.check_experimenter()
         if self.session.is_started:
             self.session.phase.is_skipped = True
-        return True
+        ses = self.application.clone_session(self.session)
+        return ses

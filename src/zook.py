@@ -7,6 +7,7 @@ import os
 import json
 import time
 import copy
+import time
 
 
 def roundup(x, y):
@@ -35,6 +36,7 @@ class Session(object):
         self.phase = None
         self.period = None
         self.is_started = False
+        self.is_paused = False
         self.is_finished = False
         self.is_all_ready = False
 
@@ -78,7 +80,7 @@ class Session(object):
 
         # Bid and Ask steps
         self.input_step_size = 0.1
-        self.input_step_time = 3
+        self.input_step_time = 1
         self.input_step_max = 0
 
         self.AInitQ = [7, 5, 8, 4, 2, 6, 3, 5, 1, 2, 6, 4]
@@ -157,17 +159,51 @@ class Session(object):
         self.is_started = True
         self.is_finished = False
         for s in self.get_subjects_by_active():
+            s.is_participating = True
             s.set_state('active')
+        for s in self.get_subjects_by_passive():
+            self.subjects.pop(s.key, None)
         self.phase = Phase(self, 0)
         self.phase.start()
 
+    def pause(self):
+        self.is_paused = True
+        for s in self.get_subjects_by_active():
+            s.set_state('waiting')
+            if s.time_left > 0:
+                time_past = int((int(time.time() * 1000) - s.timer_started_at) / 1000)
+                s.time_left -= time_past
+                if s.time_left <= 0:
+                    s.time_left = 1
+                current_price = (self.input_step_max * self.input_step_size) - (int(s.time_left / self.input_step_time) * self.input_step_size)
+                if s.group.stage == 8:
+                    s.my_bid = current_price
+                elif s.group.stage == 14:
+                    s.my_ask = current_price
+
+    def resume(self):
+        self.is_paused = False
+        for s in self.get_subjects_by_active():
+            s.set_state('active')
+
     def stop(self):
         self.is_started = False
+        self.is_paused = False
         self.is_finished = False
+        self.phases = {}
         self.phase = None
         self.period = None
-        for (i, s) in self.subjects.items():
+        for s in self.get_subjects_by_active():
+            s.is_participating = False
+            s.is_suspended = False
+            s.is_robot = False
+            s.group = None
             s.set_state('waiting')
+        for s in self.get_subjects_by_passive():
+            if s.is_initialized:
+                s.set_state('waiting')
+            else:
+                s.set_state('initial')
 
     def finish(self):
         self.is_finished = True
@@ -175,6 +211,11 @@ class Session(object):
     def get_subjects_by_active(self):
         ss = self.subjects.values()
         ss = list(s for s in ss if s.session == self and s.is_active())
+        return ss
+
+    def get_subjects_by_passive(self):
+        ss = self.subjects.values()
+        ss = list(s for s in ss if s.session == self and s.is_passive())
         return ss
 
     def get_subjects_by_group(self, group):
@@ -271,10 +312,8 @@ class Period(object):
         else:
             self.cost = session.cost_high
         session.input_step_max = self.cost / session.input_step_size
-        session.input_step_time = 1
         session.time_for_preparation = 3
         if self.key == 1:
-            session.input_step_time = 5
             session.time_for_preparation = 5
             session.time_for_input = 100
             session.time_for_result = 125
@@ -379,7 +418,7 @@ class Group(object):
         pe = period.key
         param_set = session.AValuesParamSets[ph][pe]
         ss = session.get_subjects_by_group(group)
-        ss = list(s for s in ss if s.session == session and s.is_active())
+        ss = list(s for s in ss if s.session == session and s.is_participating)
         for i, s in enumerate(ss):
             s.is_participating = True
             s.time_left = 0
@@ -396,8 +435,8 @@ class Group(object):
                 s.my_provide = None
                 s.time_left = session.time_for_input
         elif group.stage == 1:
-            for i, s in enumerate(ss):  # Iterating over subjects
-                if s.is_robot:
+            for i, s in enumerate(ss):
+                if s.is_robot or s.is_suspended:
                     sp = 0.5
                     rp = 0
                     while True:
@@ -434,7 +473,7 @@ class Group(object):
                     group.direction = 1
                 elif group.quantity_up == 11:
                     group.direction = -1
-            for i, s in enumerate(ss):  # Iterating over subjects
+            for i, s in enumerate(ss):
                 s.my_cost_unit = float(s.my_provide)
                 not_integer = float(s.my_provide) - float(s.my_provide) > 0
                 if not_integer and group.some_refund == 1:
@@ -487,7 +526,7 @@ class Group(object):
             for i, s in enumerate(ss):
                 default_bid = min(period.cost, roundup(s.value_up, 0.5))
                 s.time_left = 1
-                if s.is_robot:
+                if s.is_robot or s.is_suspended:
                     s.my_bid = s.value_up
                 elif s.my_bid == -1:
                     s.my_bid = default_bid
@@ -523,7 +562,7 @@ class Group(object):
             default_ask = period.cost
             for i, s in enumerate(ss):
                 s.time_left = 1
-                if s.is_robot:
+                if s.is_robot or s.is_suspended:
                     s.my_ask = s.value_down
                 elif s.my_ask == -1:
                     s.my_ask = default_ask
@@ -580,7 +619,6 @@ class Subject(object):
         0: 'passive',
         1: 'initial',
         2: 'dropped',
-        3: 'suspended',
         100: 'active',
         101: 'waiting',
         102: 'robot'
@@ -595,7 +633,9 @@ class Subject(object):
         self.key = key
         self.name = None
         self.previous_state = 1
-        self.state = 1
+        self.state = 0
+        if not session.is_started:
+            self.state = 1
         self.state_name = Subject.states[self.state]
         self.previous_status = 0
         self.status = 0
@@ -622,7 +662,9 @@ class Subject(object):
         self.default_provide = 0
 
         self.time_left = 0
-        self.is_participating = True
+        self.timer_started_at = 0
+        self.time_up = 0
+        self.is_participating = False
 
         self.value_up = 0
         self.value_down = 0
@@ -633,9 +675,7 @@ class Subject(object):
         return list(d.keys())[list(d.values()).index(name)]
 
     def set_state(self, name):
-        if self.is_suspended:
-            name = 'suspended'
-        elif self.is_robot:
+        if self.is_suspended or self.is_robot:
             name = 'robot'
         self.previous_state = self.state
         self.state = self.get_state_by_name(name)
@@ -661,7 +701,7 @@ class Subject(object):
         return int(self.state / 100) == 0
 
     def is_active(self):
-        return int(self.state / 100) == 1
+        return int(self.state / 100) == 1 and not self.is_suspended and not self.is_robot
 
     def add_balance(self, amount):
         self.current_balance += amount
@@ -689,6 +729,7 @@ class Application(tornado.web.Application):
         self.sessions = {}
         self.groups = {}
         self.sockets = {}
+        self.timers = {}
         self.public_path = public_path
         self.data_path = data_path
         _handlers = [
@@ -748,38 +789,113 @@ class Application(tornado.web.Application):
 
     def start_session(self, session):
         session.start()
+        ss = list(s for s in self.subjects.values() if s.key not in session.subjects)
+        for s in ss:
+            self.subjects.pop(s.key, None)
+            socket = self.get_socket(s.key)
+            if socket is not None and socket.is_open:
+                socket.close()
+        self.continue_session(session)
+
+    def pause_session(self, session):
+        timers = dict(self.timers)
+        for key, timer in timers.items():
+            self.clear_timer(key)
+        session.pause()
+        self.continue_session(session)
+
+    def resume_session(self, session):
+        session.resume()
         self.continue_session(session)
 
     def stop_session(self, session):
         session.stop()
         self.continue_session(session)
+        for s in session.get_subjects_by_passive():
+            socket = self.get_socket(s.key)
+            if socket is not None and socket.is_open:
+                sub = self.clone_subject(s)
+                socket.send('get_subject', sub)
 
     def continue_session(self, session, group=None):
         ss = session.get_subjects_by_active()
         if group is not None:
             ss = session.get_subjects_by_group(group)
         for i, s in enumerate(ss):
-            socket = self.get_socket(s.key)
-            if socket is not None:
+            if not session.is_paused:
                 if s.time_left > 0:
-                    socket.timer = threading.Timer(s.time_left, socket.input_timeout)
-                    socket.timer.start()
+                    self.set_timer(s.key, s.time_left)
+                else:
+                    self.clear_timer(s.key)
+            socket = self.get_socket(s.key)
+            if socket is not None and socket.is_open:
                 sub = self.clone_subject(s)
                 socket.send('continue_session', sub)
         for i, e in session.experimenters.items():
             socket = self.get_socket(e.key)
             ses = self.clone_session(session)
-            if socket is not None:
+            if socket is not None and socket.is_open:
                 socket.send('get_session', ses)
+
+    def set_timer(self, key, time_left):
+        subject = self.get_subject(key)
+        if subject is not None:
+            subject.timer_started_at = int(time.time() * 1000)
+            subject.time_up = subject.timer_started_at + (time_left * 1000)
+        self.clear_timer(key)
+        timer = threading.Timer(time_left - 2, self.input_timeout, [key])
+        timer.start()
+        self.timers[key] = timer
+
+    def clear_timer(self, key):
+        if key in self.timers:
+            timer = self.timers[key]
+            timer.cancel()
+            self.timers.pop(key, None)
+
+    def input_timeout(self, key):
+        self.clear_timer(key)
+        subject = self.get_subject(key)
+        if subject.is_active():
+            subject.set_state('waiting')
+        subject.time_left = 0
+        subject.timer_started_at = 0
+        self.proceed(subject.session)
+        socket = self.get_socket(key)
+        if socket is not None and socket.is_open:
+            sub = self.clone_subject(subject)
+            socket.send('continue_session', sub)
+
+    def proceed(self, session):
+        period = self.get_current_period(session)
+        waiting_groups = []
+        finished_groups = []
+        for (i, group) in period.groups.items():
+            subjects = session.get_subjects_by_group(group)
+            subjects = list(s for s in subjects if not s.is_suspended and not s.is_robot)
+            subjects_waiting = list(s for s in subjects if Subject.states[s.state] == 'waiting')
+            if len(subjects_waiting) == len(subjects):
+                if group.is_finished_period:
+                    finished_groups.append(group)
+                else:
+                    waiting_groups.append(group)
+        if len(finished_groups) == len(period.groups):
+            session.phase.next_period()
+            self.write_to_file(session)
+            self.continue_session(session)
+        elif len(waiting_groups) > 0:
+            for group in waiting_groups:
+                group.next_stage()
+                self.continue_session(session, group)
 
     def clone_session(self, session, include_phases=True, include_periods=True, include_groups=True, include_subjects=True, include_experimenters=True):
         ses = copy.copy(session.__dict__)
         if include_subjects:
             ses['subjects'] = copy.copy(ses['subjects'])
-            ses['subjects'] = {
-                k: self.clone_subject(v, False)
+            ses['subjects'] = [
+                self.clone_subject(v, False)
                 for (k, v) in ses['subjects'].items()
-            }
+            ]
         else:
             ses.pop('subjects', None)
         if include_experimenters:
@@ -871,60 +987,10 @@ class Application(tornado.web.Application):
             sub.pop('group', None)
         return sub
 
-    def proceed(self, session):
-        period = self.get_current_period(session)
-        waiting_groups = []
-        finished_groups = []
-        for (i, group) in period.groups.items():
-            subjects = session.get_subjects_by_group(group)
-            subjects = list(s for s in subjects if not s.is_suspended and not s.is_robot)
-            subjects_waiting = list(s for s in subjects if Subject.states[s.state] == 'waiting')
-            if len(subjects_waiting) == len(subjects):
-                if group.is_finished_period:
-                    finished_groups.append(group)
-                else:
-                    waiting_groups.append(group)
-        if len(finished_groups) == len(period.groups):
-            session.phase.next_period()
-            self.write_to_file(session)
-            self.continue_session(session)
-        elif len(waiting_groups) > 0:
-            for group in waiting_groups:
-                group.next_stage()
-                self.continue_session(session, group)
-
-    @staticmethod
-    def to_dict(obj, ignores=None):
-        to_dict = Application.to_dict
-        igs = []
-        if ignores is not None:
-            if obj in ignores:
-                return None
-            igs.extend(ignores)
-        if hasattr(obj, '__dict__') and obj not in igs:
-            igs.append(obj)
-        if isinstance(obj, dict):
-            for (k, v) in obj.items():
-                obj[k] = to_dict(v, igs)
-            return obj
-        elif isinstance(obj, list):
-            return [to_dict(v, igs) for v in obj]
-        elif hasattr(obj, "_ast"):
-            return to_dict(obj._ast())
-        elif hasattr(obj, "__dict__"):
-            return {
-                key: to_dict(value, igs)
-                for key, value in obj.__dict__.items()
-                if not callable(value) and not key.startswith('_')
-            }
-        else:
-            return obj
-
     def write_to_file(self, session):
         if not os.path.exists(self.data_path):
             os.makedirs(self.data_path)
         with open(os.path.join(self.data_path, 'session-' + session.key + '.json'), 'w') as f:
-            #d = self.to_dict(session)
             d = self.clone_session(session)
             j = json.dumps(d, sort_keys=True)
             f.write(j)
