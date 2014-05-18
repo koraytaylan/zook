@@ -2,7 +2,7 @@ import zook
 import tornado.websocket
 import uuid
 import time
-import json
+import ujson as json
 import codecs
 import os
 import sys
