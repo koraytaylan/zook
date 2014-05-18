@@ -846,7 +846,7 @@ class Application(tornado.web.Application):
             subject.timer_started_at = int(time.time() * 1000)
             subject.time_up = subject.timer_started_at + (time_left * 1000)
         self.clear_timer(key)
-        timer = threading.Timer(time_left - 2, self.input_timeout, [key])
+        timer = threading.Timer(time_left, self.input_timeout, [key])
         timer.start()
         self.timers[key] = timer
 
