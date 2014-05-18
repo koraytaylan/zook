@@ -99,16 +99,18 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', '$interval
         }
         if ($scope.group !== null) {
             $scope.priceTimer = $interval(function () {
-                if ($scope.group.stage === 8) {
-                    if ($scope.subject.my_bid === -1) {
-                        $scope.subject.my_bid = 0;
+                if ($scope.group !== null) {
+                    if ($scope.group.stage === 8) {
+                        if ($scope.subject.my_bid === -1) {
+                            $scope.subject.my_bid = 0;
+                        }
+                        $scope.subject.my_bid += 0.1;
+                    } else if ($scope.group.stage === 13) {
+                        if ($scope.subject.my_ask === -1) {
+                            $scope.subject.my_ask = 0;
+                        }
+                        $scope.subject.my_ask += 0.1;
                     }
-                    $scope.subject.my_bid += 0.1;
-                } else if ($scope.group.stage === 13) {
-                    if ($scope.subject.my_ask === -1) {
-                        $scope.subject.my_ask = 0;
-                    }
-                    $scope.subject.my_ask += 0.1;
                 }
             }, $scope.session.input_step_time * 1000, $scope.session.input_step_max);
         }
