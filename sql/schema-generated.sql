@@ -29,28 +29,20 @@ create table session (
 );
 alter table session add constraint pk_session primary key (id);
 
-drop table if exists phase cascade;
-create table phase (
+drop table if exists period cascade;
+create table period (
     id bigserial not null,
     session_id bigint,
     data json,
     key int not null default 0,
-    is_skipped bool not null default false
-);
-alter table phase add constraint pk_phase primary key (id);
-
-drop table if exists period cascade;
-create table period (
-    id bigserial not null,
-    phase_id bigint,
-    data json,
-    key int not null default 0,
-    cost decimal not null default 0
+    phase int not null default 0,
+    cost decimal not null default 0,
+    skip_phase bool not null default false
 );
 alter table period add constraint pk_period primary key (id);
 
-drop table if exists subject_group cascade;
-create table subject_group (
+drop table if exists group cascade;
+create table group (
     id bigserial not null,
     period_id bigint,
     data json,
@@ -73,74 +65,5 @@ create table subject_group (
     label_continue varchar(100) not null default 'Continue',
     is_finished bool not null default false
 );
-alter table subject_group add constraint pk_subject_group primary key (id);
-
-drop table if exists subject cascade;
-create table subject (
-    id bigserial not null,
-    session_id bigint,
-    subject_group_id bigint,
-    data json,
-    key uuid not null,
-    name varchar(100),
-    previous_state int not null default 0,
-    state int not null default 0,
-    role int not null default 0,
-    my_cost decimal not null default 0,
-    my_value decimal not null default 0,
-    my_bid decimal not null default -1,
-    my_ask decimal not null default -1,
-    my_tax decimal not null default -1,
-    my_rebate decimal not null default -1,
-    my_provide decimal not null default -1,
-    current_balance decimal not null default 0,
-    tent_profit decimal not null default 0,
-    period_profit decimal not null default 0,
-    phase_profit decimal not null default 0,
-    total_profit decimal not null default 0,
-    aft_profit decimal not null default 0,
-    example_cost decimal not null default 0,
-    default_provide decimal not null default 0,
-    time_left decimal not null default 0,
-    value_up decimal not null default 0,
-    value_down decimal not null default 0,
-    is_initialized bool not null default false,
-    is_suspended bool not null default false,
-    is_robot bool not null default false
-);
-alter table subject add constraint pk_subject primary key (id);
-
-drop table if exists transaction cascade;
-create table transaction (
-    id bigserial not null,
-    subject_id bigint,
-    period_id bigint,
-    data json,
-    amount decimal not null default 0
-);
-alter table transaction add constraint pk_transaction primary key (id);
-
-drop table if exists option cascade;
-create table option (
-    name varchar(100) not null,
-    value json not null
-);
-alter table option add constraint pk_option primary key (name);
-
-alter table session add constraint fk_session_period foreign key (period_id) references period (id);
-alter table phase add constraint fk_phase_session foreign key (session_id) references session (id);
-alter table period add constraint fk_period_phase foreign key (phase_id) references phase (id);
-alter table subject_group add constraint fk_subject_group_period foreign key (period_id) references period (id);
-alter table subject add constraint fk_subject_session foreign key (session_id) references session (id);
-alter table subject add constraint fk_subject_subject_group foreign key (subject_group_id) references subject_group (id);
-alter table transaction add constraint fk_transaction_subject foreign key (subject_id) references subject (id);
-alter table transaction add constraint fk_transaction_period foreign key (period_id) references period (id);
-
-
-create index ix_session_key on session (key);
-create index ix_phase_key on phase (key);
-create index ix_period_key on period (key);
-create index ix_subject_group_key on subject_group (key);
-create index ix_subject_key on subject (key);
-create index ix_subject_session_id on subject (session_id);
+alter table group add constraint pk_group primary key (id);
 

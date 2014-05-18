@@ -54,29 +54,20 @@ models: [
         ]
     },
     {
-        name: phase,
+        name: period,
         inherits: entry,
         fields: [
             { name: key, type: int, default: 0, indexed: true },
-            { name: is_skipped, type: bool }
+            { name: phase, type: int, default: 0 },
+            { name: cost, type: decimal, default: 0 },
+            { name: skip_phase, type: bool }
         ],
         references: [
             { to: session }
         ]
     },
     {
-        name: period,
-        inherits: entry,
-        fields: [
-            { name: key, type: int, default: 0, indexed: true },
-            { name: cost, type: decimal, default: 0 }
-        ],
-        references: [
-            { to: phase }
-        ]
-    },
-    {
-        name: subject_group,
+        name: group,
         inherits: entry,
         fields: [
             { name: key, type: int, default: 0, indexed: true },
