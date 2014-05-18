@@ -809,6 +809,9 @@ class Application(tornado.web.Application):
         self.continue_session(session)
 
     def stop_session(self, session):
+        timers = dict(self.timers)
+        for key, timer in timers.items():
+            self.clear_timer(key)
         session.stop()
         self.continue_session(session)
         for s in session.get_subjects_by_passive():
