@@ -1,0 +1,40 @@
+<p>Before we can pay you, we need the following information for your receipt:</p>
+<form class="form-horizontal" role="form">
+  <div class="form-group">
+    <label for="txtRealName" class="col-sm-2 control-label">Full Name</label>
+    <div class="col-sm-10">
+      <input id="txtRealName" type="text" class="form-control" autocomplete="off" ng-model="subject.real_name">
+    </div>
+  </div>
+  <div class="form-group">
+    <label for="txtIdentificationNumber" class="col-sm-2 control-label">{{session.label_identification_number}}</label>
+    <div class="col-sm-10">
+      <input id="txtIdentificationNumber" type="text" class="form-control" autocomplete="off" ng-model="subject.identification_number" placeholder="With no dashes or spaces">
+    </div>
+  </div>
+  <div class="form-group">
+    <label for="txtAddress" class="col-sm-2 control-label">Address</label>
+    <div class="col-sm-10">
+      <textarea id="txtAddress" class="form-control" rows="3" ng-model="subject.address"></textarea>
+    </div>
+  </div>
+  <div class="form-group">
+    <label for="txtPostalCode" class="col-sm-2 control-label">Postal Code</label>
+    <div class="col-sm-10">
+      <input id="txtPostalCode" type="text" class="form-control" autocomplete="off" ng-model="subject.postal_code" placeholder="With no dashes or spaces">
+    </div>
+  </div>
+  <div class="form-group">
+    <label for="txtLocation" class="col-sm-2 control-label">Location</label>
+    <div class="col-sm-10">
+      <input id="txtLocation" type="text" class="form-control" autocomplete="off" ng-model="subject.location" placeholder="City or town name">
+    </div>
+  </div>
+  <div class="form-group">
+    <label for="txtEmail" class="col-sm-2 control-label">Email</label>
+    <div class="col-sm-10">
+      <input id="txtEmail" type="email" class="form-control" autocomplete="off" ng-model="subject.email">
+    </div>
+  </div>
+</form>
+<p>Please correct any mistakes, then press Continue.</p>

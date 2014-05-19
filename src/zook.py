@@ -83,6 +83,8 @@ class Session(object):
         self.input_step_time = 1
         self.input_step_max = 0
 
+        self.label_identification_number = "Identification Number"
+
         self.AInitQ = [7, 5, 8, 4, 2, 6, 3, 5, 1, 2, 6, 4]
         self.ADirectionPhase1 = [1, 1, -1, 0, -1, 0, -1, 0, 1, 1, -1, 0]
         self.AValuesParamSets = [
@@ -401,7 +403,7 @@ class Group(object):
         self.stage_name = Group.stages[stage]
 
     def next_stage(self):
-        if (self.stage < 15):
+        if (self.stage < 16):
             self.stage += 1
         self.start_stage()
 
@@ -581,7 +583,6 @@ class Group(object):
                 group.outcome = -1
             else:
                 group.outcome = 0
-            group.is_finished_period = True
             for i, s in enumerate(ss):
                 s.time_left = 30
                 if pe == 1:
@@ -608,6 +609,10 @@ class Group(object):
                 if s.current_balance < -session.maximum_loss:
                     s.is_robot = True
                     s.set_state('robot')
+            if ph < 3 or !phase.is_skipped or pe < 23:
+                group.is_finished_period = True
+        elif group.stage == 16:
+            group.is_finished_period = True
 
 
 class Subject(object):
@@ -666,6 +671,13 @@ class Subject(object):
 
         self.value_up = 0
         self.value_down = 0
+
+        self.real_name = None
+        self.identification_number = None
+        self.address = None
+        self.postal_code = None
+        self.location = None
+        self.email = None
 
     @staticmethod
     def get_state_by_name(name):

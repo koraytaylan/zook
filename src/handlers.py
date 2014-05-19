@@ -476,6 +476,18 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             subject.my_bid = data['my_bid']
         if 'my_ask' in data:
             subject.my_ask = data['my_ask']
+        if 'real_name' in data:
+            subject.real_name = data['real_name']
+        if 'identification_number' in data:
+            subject.identification_number = data['identification_number']
+        if 'address' in data:
+            subject.address = data['address']
+        if 'postal_code' in data:
+            subject.postal_code = data['postal_code']
+        if 'location' in data:
+            subject.location = data['location']
+        if 'email' in data:
+            subject.email = data['email']
         subject.decide_state()
         return subject
 
@@ -585,6 +597,23 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                     'The quantity must be at least 0,'
                     + ' at most 4, and a multiple of 1/2.'
                     )
+        elif group.stage == 16:
+            missing_fields = []
+            if not subject.real_name or not subject.real_name.strip():
+                missing_fields.append('Full name')
+            if not subject.identification_number or not subject.identification_number.strip():
+                missing_fields.append('Identification Number')
+            if not subject.address or not subject.address.strip():
+                missing_fields.append('Address')
+            if not subject.location or not subject.location.strip():
+                missing_fields.append('Location')
+            if not subject.email or not subject.email.strip():
+                missing_fields.append('Email')
+            if len(missing_fields) > 0:
+                error = 'Please fill the mandatory fields listed below,\n\n'
+                for f in missing_fields:
+                    error += '- {0}\n'.format(f)
+                raise InvalidOperationException(error)
 
     def skip_phase(self, message):
         self.check_experimenter()

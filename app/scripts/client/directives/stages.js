@@ -91,3 +91,13 @@ app.directive('stage15', [ function () {
         }
     };
 }]);
+
+app.directive('stage16', [ function () {
+    return {
+        restrict: 'E',
+        scope: false,
+        templateUrl: 'partials/client/stage16.html',
+        controller: function ($scope) {
+        }
+    };
+}]);
