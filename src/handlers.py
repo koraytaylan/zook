@@ -601,7 +601,9 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         session = zook.Session()
         self.application.sessions[session.key] = session
         self.session = session
-        session.experimenters[self.key] = self.application.experimenters[self.key]
+        e = self.application.experimenters[self.key]
+        e.session = session
+        session.experimenters[self.key] = e
         for key, s in ss:
             self.application.subjects.pop(key, None)
             socket = self.application.get_socket(key)

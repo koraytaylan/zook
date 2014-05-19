@@ -193,17 +193,15 @@ class Session(object):
         self.phases = {}
         self.phase = None
         self.period = None
-        for s in self.get_subjects_by_active():
+        for key, s in self.subjects.items():
             s.is_participating = False
             s.is_suspended = False
             s.is_robot = False
             s.group = None
-            s.set_state('waiting')
-        for s in self.get_subjects_by_passive():
-            if s.is_initialized:
-                s.set_state('waiting')
-            else:
+            if not s.is_initialized:
                 s.set_state('initial')
+            else:
+                s.set_state('waiting')
 
     def finish(self):
         self.is_finished = True
