@@ -46,7 +46,12 @@
                   </div>
 
                   <div ng-switch-when="waiting">
-                    <wait></wait>
+                    <wait ng-if="!session.is_finished"></wait>
+                    <div ng-if="session.is_finished">
+                        <p>The experiment has ended.</p>
+                        <p>Please wait quietly at your computer, until we come to you to pay you, or ask you to come to us.</p>
+                        <p>Please allow us to pay each person in privacy.</p>
+                    </div>
                   </div>
 
                   <div ng-switch-when="active">

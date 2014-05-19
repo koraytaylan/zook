@@ -501,8 +501,8 @@ class Group(object):
                     group.direction = session.ADirectionPhase1[pe]
                     group.quantity_up = group.quantity_initial + 1
                     group.quantity_down = group.quantity_initial - 1
-                s.value_up = session.AValueUp[session.AValuesParamSets[ph][pe]][s.role][group.quantity_initial]
-                s.value_down = session.AValueUp[session.AValuesParamSets[ph][pe]][s.role][group.quantity_down]
+                s.value_up = session.AValueUp[param_set][s.role][min(9, group.quantity_initial)]
+                s.value_down = session.AValueUp[param_set][s.role][max(0, group.quantity_down)]
             group.stage = 5
         elif group.stage == 6:
             return self.next_stage()
