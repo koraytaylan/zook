@@ -83,6 +83,9 @@ class Session(object):
         self.input_step_time = 1
         self.input_step_max = 0
 
+        self.start_from_phase = 3
+        self.start_from_period = 23
+
         self.label_identification_number = "Identification Number"
 
         self.AInitQ = [7, 5, 8, 4, 2, 6, 3, 5, 1, 2, 6, 4]
@@ -163,9 +166,11 @@ class Session(object):
         for s in self.get_subjects_by_active():
             s.is_participating = True
             s.set_state('active')
+            s.total_profit = 0
+            s.current_balance = self.starting_balance
         for s in self.get_subjects_by_passive():
             self.subjects.pop(s.key, None)
-        self.phase = Phase(self, 0)
+        self.phase = Phase(self, self.start_from_phase)
         self.phase.start()
 
     def pause(self):
@@ -248,13 +253,10 @@ class Phase(object):
     def start(self):
         ss = self.session.get_subjects_by_active()
         for s in ss:
-            if self.key == 0:
-                s.total_profit = 0
-                s.current_balance = self.session.starting_balance
             self.balances[s.key] = s.current_balance
             self.phase_profit = 0
         self.session.phase = self
-        p = Period(self, 0)
+        p = Period(self, self.session.start_from_period)
         p.start()
 
     def finish(self):
@@ -358,7 +360,8 @@ class Group(object):
         12: 'ready Dn',
         13: 'get AcceptAsk',
         14: 'PreResultDn',
-        15: 'Result'
+        15: 'Result',
+        16: 'Last Screen'
     }
 
     def __init__(self, period, key):
@@ -488,12 +491,16 @@ class Group(object):
         elif group.stage == 2:
             for i, s in enumerate(ss):
                 s.time_left = session.time_for_result
-            if ph == 1 or pe % 2 != 0:
+            if ph == 1 or (ph != 2 and pe % 2 != 0):
                 for i, s in enumerate(ss):
                     if s.current_balance < -session.maximum_loss:
                         s.is_robot = True
                         s.set_state('robot')
-                group.is_finished_period = True
+                if ph < 3 or (not phase.is_skipped and pe < 23):
+                    group.is_finished_period = True
+                else:
+                    self.stage = 15
+                    return self.start_stage()
         elif group.stage == 3:
             return self.next_stage()
         elif group.stage == 4:
@@ -609,7 +616,7 @@ class Group(object):
                 if s.current_balance < -session.maximum_loss:
                     s.is_robot = True
                     s.set_state('robot')
-            if ph < 3 or !phase.is_skipped or pe < 23:
+            if ph < 3 or (not phase.is_skipped and pe < 23):
                 group.is_finished_period = True
         elif group.stage == 16:
             group.is_finished_period = True

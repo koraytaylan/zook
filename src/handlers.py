@@ -51,6 +51,7 @@ class ExportHandler(tornado.web.RequestHandler):
     def render(self, key):
         wb = openpyxl.Workbook(encoding='utf-8')
         ws = wb.active
+        ws.title = 'Session'
         path_json = os.path.join(self.application.data_path, 'session-' + key + '.json')
         path_xlsx = os.path.join(self.application.data_path, 'session-' + key + '.xlsx')
         data = None
@@ -99,11 +100,53 @@ class ExportHandler(tornado.web.RequestHandler):
                     subjects = OrderedDict(sorted(g['subjects'].items(), key=lambda t: t[1]['name']))
                     for s in subjects.values():
                         col = 0
-                        cells = self.generate_row(ph, pe, g, s)
+                        cells = self.generate_session_row(ph, pe, g, s)
                         for c in cells:
                             ws.cell(row=row, column=col).value = c
                             col += 1
                         row += 1
+        ws = wb.create_sheet()
+        ws.title = 'Subjects'
+        headers = (
+            'Subject',
+            'Suspended',
+            'Robot',
+            'Balance',
+            'TotalProfit',
+            'RealName',
+            'IdentificationNumber',
+            'Address',
+            'PostalCode',
+            'Location',
+            'Email'
+        )
+        row = 0
+        col = 0
+        for h in headers:
+            cell = ws.cell(row=row, column=col)
+            cell.value = h
+            cell.style.font.bold = True
+            col += 1
+        row = 1
+        for s in data['subjects']:
+            col = 0
+            r = (
+                s['name'],
+                s['is_suspended'],
+                s['is_robot'],
+                s['current_balance'],
+                s['total_profit'],
+                s['real_name'],
+                s['identification_number'],
+                s['address'],
+                s['postal_code'],
+                s['location'],
+                s['email']
+            )
+            for c in r:
+                ws.cell(row=row, column=col).value = c
+                col += 1
+            row += 1
         wb.save(path_xlsx)
 
     def set_cell_value(self, ws, row, column, value, centered=False):
@@ -113,7 +156,7 @@ class ExportHandler(tornado.web.RequestHandler):
             c.style.alignment.vertical = 'center'
         c.value = value
 
-    def generate_row(self, ph, pe, g, s):
+    def generate_session_row(self, ph, pe, g, s):
         role = None
         provide = None
         bid = None
@@ -163,51 +206,6 @@ class ExportHandler(tornado.web.RequestHandler):
             s['total_profit']
         )
         return row
-
-    def render_(self, key):
-        wb = openpyxl.Workbook(encoding='utf-8')
-        ws = wb.active
-        path_json = os.path.join(self.application.data_path, 'session-' + key + '.json')
-        path_xlsx = os.path.join(self.application.data_path, 'session-' + key + '.xlsx')
-        data = None
-        with open(path_json, 'r') as f:
-            data = json.load(f)
-        ws['A3'] = 'Name'
-        ws['B3'] = 'Balance'
-        ws['C3'] = 'Total Profit'
-        ws['D3'] = 'Suspended'
-        phases = OrderedDict(sorted(data['phases'].items(), key=lambda t: int(t[0])))
-        row = 0
-        col = 4
-        for i, ph in enumerate(phases.values()):
-            row = 0
-            ws.cell(row=row, column=col).value = 'Phase ' + str(ph['key'])
-            periods = OrderedDict(sorted(ph['periods'].items(), key=lambda t: int(t[0])))
-            for j, pe in enumerate(periods.values()):
-                row = 1
-                ws.cell(row=row, column=col).value = 'Period ' + str(pe['key'])
-                ws.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col+4)
-                row = 2
-                ws.cell(row=row, column=col).value = 'Cost'
-                ws.cell(row=row, column=col+1).value = 'Profit'
-                ws.cell(row=row, column=col+2).value = 'Provide'
-                ws.cell(row=row, column=col+3).value = 'Bid'
-                ws.cell(row=row, column=col+4).value = 'Ask'
-                col += 5
-            #col += len(periods) + 4 + i
-        for i, s in enumerate(data['subjects'].values()):
-            ws.cell(row=i+3, column=0).value = s['name']
-            ws.cell(row=i+3, column=1).value = s['current_balance']
-            ws.cell(row=i+3, column=2).value = s['total_profit']
-            ws.cell(row=i+3, column=3).value = s['is_suspended'] or s['is_robot']
-        ws.column_dimensions['A'].width = 30
-        ws.column_dimensions['B'].width = 15
-        ws.column_dimensions['C'].width = 15
-        ws.column_dimensions['D'].width = 15
-        for r in list(range(3)):
-            for c in list(range(col)):
-                ws.cell(row=r, column=c).style.font.bold = True
-        wb.save(path_xlsx)
 
 
 class InvalidOperationException(Exception):
@@ -517,6 +515,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             if socket is not None and socket.is_open:
                 sub = self.application.clone_subject(subject)
                 socket.send('get_subject', sub)
+            self.application.proceed(self.session)
             return True
         else:
             return False
@@ -569,29 +568,35 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
 
     def continue_session(self, message):
         self.check_data(message)
+        self.process_input(message)
         self.set_subject(message)
-        subject = self.application.get_subject(self.key)
         if self.session.is_started:
             self.application.clear_timer(self.key)
-            self.process_input()
             self.application.proceed(self.session)
+        subject = self.application.get_subject(self.key)
         s = self.application.clone_subject(subject)
         return s
 
-    def process_input(self):
+    def process_input(self, message):
+        if not self.session.is_started:
+            return
         subject = self.application.get_subject(self.key)
         group = subject.group
+        data = message['data']
         if group.stage == 0:
-            if subject.my_provide is None:
+            my_provide = None
+            if 'my_provide' in data:
+                my_provide = data['my_provide']
+            if my_provide is None:
                 raise InvalidOperationException(
                     'A default value will be used for you'
                     + ' unless you enter a valid number.')
-            elif re.match('^\d+(\.\d+){0,1}$', subject.my_provide) is None \
-                    or float(subject.my_provide) < 0 \
-                    or float(subject.my_provide) > 4 \
+            elif re.match('^\d+(\.\d+){0,1}$', my_provide) is None \
+                    or float(my_provide) < 0 \
+                    or float(my_provide) > 4 \
                     or (
-                        float(subject.my_provide) - float(subject.my_provide) > 0
-                        and float(subject.my_provide) - float(subject.my_provide) != 0.5
+                        float(my_provide) - float(my_provide) > 0
+                        and float(my_provide) - float(my_provide) != 0.5
                         ):
                 raise InvalidOperationException(
                     'The quantity must be at least 0,'
@@ -599,15 +604,30 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                     )
         elif group.stage == 16:
             missing_fields = []
-            if not subject.real_name or not subject.real_name.strip():
+            real_name = None
+            if 'real_name' in data:
+                real_name = data['real_name']
+            identification_number = None
+            if 'identification_number' in data:
+                identification_number = data['identification_number']
+            address = None
+            if 'address' in data:
+                address = data['address']
+            location = None
+            if 'location' in data:
+                location = data['location']
+            email = None
+            if 'email' in data:
+                email = data['email']
+            if not real_name or not real_name.strip():
                 missing_fields.append('Full name')
-            if not subject.identification_number or not subject.identification_number.strip():
+            if not identification_number or not identification_number.strip():
                 missing_fields.append('Identification Number')
-            if not subject.address or not subject.address.strip():
+            if not address or not address.strip():
                 missing_fields.append('Address')
-            if not subject.location or not subject.location.strip():
+            if not location or not location.strip():
                 missing_fields.append('Location')
-            if not subject.email or not subject.email.strip():
+            if not email or not email.strip():
                 missing_fields.append('Email')
             if len(missing_fields) > 0:
                 error = 'Please fill the mandatory fields listed below,\n\n'
