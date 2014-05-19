@@ -79,7 +79,8 @@ app.controller('ClientsCtrl', [ '$scope', 'SocketService', function ($scope, soc
 
     $scope.$on('socket-received', function (event, message) {
         if (message.type === 'set_session'
-                || message.type === 'get_session') {
+                || message.type === 'get_session'
+                || message.type === 'reset') {
             $scope.session = message.data;
             $scope.subjectCounts = generateSubjectCounts();
         }
@@ -88,6 +89,5 @@ app.controller('ClientsCtrl', [ '$scope', 'SocketService', function ($scope, soc
 
     $scope.$on('socket-initialized', function (event, message) {
         $scope.subjectCounts = generateSubjectCounts();
-        //$scope.$apply();
     });
 }]);

@@ -293,6 +293,8 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                 reply = self.continue_session(o)
             elif message_type == 'skip_phase':
                 reply = self.skip_phase(o)
+            elif message_type == 'reset':
+                reply = self.reset(o)
             else:
                 raise InvalidOperationException('Unknown message type')
             self.send(message_type, reply, id)
@@ -589,4 +591,29 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         if self.session.is_started:
             self.session.phase.is_skipped = True
         ses = self.application.clone_session(self.session)
+        return ses
+
+    def reset(self, message):
+        self.check_experimenter()
+        ss = self.session.subjects.items()
+        es = self.session.experimenters.items()
+        self.application.sessions.pop(self.session.key, None)
+        session = zook.Session()
+        self.application.sessions[session.key] = session
+        self.session = session
+        session.experimenters[self.key] = self.application.experimenters[self.key]
+        for key, s in ss:
+            self.application.subjects.pop(key, None)
+            socket = self.application.get_socket(key)
+            if socket is not None and socket.is_open:
+                socket.close()
+        ses = self.application.clone_session(self.session)
+        for key, e in es:
+            if key is self.key:
+                continue
+            e.session = session
+            session.experimenters[key] = e
+            socket = self.application.get_socket(key)
+            if socket is not None and socket.is_open:
+                socket.send('get_session', ses)
         return ses

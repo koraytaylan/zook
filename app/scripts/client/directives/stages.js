@@ -6,7 +6,7 @@ app.directive('stage0', [ function () {
     return {
         restrict: 'E',
         scope: false,
-        templateUrl: 'partials/client/stage0.html',
+        templateUrl: 'partials/client/stage00.html',
         controller: function ($scope) {
         }
     };
@@ -16,7 +16,7 @@ app.directive('stage2', [ function () {
     return {
         restrict: 'E',
         scope: false,
-        templateUrl: 'partials/client/stage2.html',
+        templateUrl: 'partials/client/stage02.html',
         controller: function ($scope) {
         }
     };
@@ -26,7 +26,7 @@ app.directive('stage5', [ function () {
     return {
         restrict: 'E',
         scope: false,
-        templateUrl: 'partials/client/stage5.html',
+        templateUrl: 'partials/client/stage05.html',
         controller: function ($scope) {
         }
     };
@@ -36,7 +36,7 @@ app.directive('stage7', [ function () {
     return {
         restrict: 'E',
         scope: false,
-        templateUrl: 'partials/client/stage7.html',
+        templateUrl: 'partials/client/stage07.html',
         controller: function ($scope) {
         }
     };
@@ -46,7 +46,7 @@ app.directive('stage8', [ function () {
     return {
         restrict: 'E',
         scope: false,
-        templateUrl: 'partials/client/stage8.html',
+        templateUrl: 'partials/client/stage08.html',
         controller: function ($scope) {
         }
     };

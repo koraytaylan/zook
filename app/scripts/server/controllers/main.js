@@ -68,6 +68,10 @@ app.controller('MainCtrl', [ '$scope', '$location', 'SocketService', function ($
         sessionAction('stop_session');
     };
 
+    $scope.reset = function () {
+        sessionAction('reset');
+    };
+
     $scope.skipPhase = function () {
         sessionAction('skip_phase');
     };
