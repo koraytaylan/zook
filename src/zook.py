@@ -83,8 +83,8 @@ class Session(object):
         self.input_step_time = 1
         self.input_step_max = 0
 
-        self.start_from_phase = 3
-        self.start_from_period = 23
+        self.start_from_phase = 0
+        self.start_from_period = 0
 
         self.label_identification_number = "Identification Number"
 
