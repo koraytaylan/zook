@@ -2,13 +2,11 @@
 /*global angular, app, $*/
 'use strict';
 
-app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', '$interval', function ($scope, socket, log, $interval) {
-    $scope.status = 'passive';
-    $scope.isInitialized = false;
+app.controller('MainCtrl', [ '$scope', 'SocketService', '$interval', function ($scope, socket, $interval) {
+    $scope.isConnected = false;
+    $scope.isWaiting = false;
     $scope.instructionsVisible = false;
     $scope.timerIsRunning = false;
-    $scope.isWaiting = false;
-    $scope.isActive = false;
 
     $scope.title = 'Welcome to Zook!';
     $scope.subject = {};
@@ -153,6 +151,7 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', '$interval
     };
 
     $scope.$on('socket-initialized', function (event, message) {
+        $scope.isConnected = true;
         $scope.session = $.extend($scope.session, message.data.session);
         socket.send('get_subject');
     });
@@ -169,51 +168,18 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', '$interval
             $scope.subject = data;
             $scope.session = data.session;
             $scope.group = data.group;
-
-            switch ($scope.subject.state_name) {
-            case 'passive':
-                $scope.isInitialized = false;
-                $scope.isWaiting = true;
-                break;
-            case 'initial':
-                $scope.isInitialized = false;
-                $scope.isWaiting = false;
-                break;
-            case 'waiting':
-                $scope.isInitialized = true;
-                $scope.isWaiting = true;
-                timerStop();
-                break;
-            case 'active':
-                $scope.isInitialized = true;
-                $scope.isWaiting = false;
-                if ($scope.subject.time_left > 0) {
-                    time_left = parseInt(($scope.subject.time_up - new Date().getTime()) / 1000);
-                    if (time_left <= 0) {
-                        time_left = 1;
-                    }
-                    $scope.answerCountdown = time_left;
-                    timerClear();
-                    timerStart();
-                    if ($scope.group.stage === 8 || $scope.group.stage === 13) {
-                        $scope.startPriceTimer();
-                    }
+            timerClear();
+            $scope.isWaiting = $scope.subject.state_name === 'waiting';
+            if ($scope.subject.time_left > 0) {
+                time_left = parseInt(($scope.subject.time_up - new Date().getTime()) / 1000, 10);
+                if (time_left <= 0) {
+                    time_left = 1;
                 }
-                current_price = ($scope.session.input_step_max * $scope.session.input_step_size) - (parseInt(time_left / $scope.session.input_step_time) * $scope.session.input_step_size);
-                if ($scope.subject.group.stage === 8) {
-                    $scope.subject.my_bid = current_price;
-                } else if ($scope.subject.group.stage === 14) {
-                    $scope.subject.my_ask = current_price;
+                $scope.answerCountdown = time_left;
+                timerStart();
+                if ($scope.group.stage === 8 || $scope.group.stage === 13) {
+                    $scope.startPriceTimer();
                 }
-                break;
-            case 'robot':
-                $scope.isInitialized = true;
-                $scope.isWaiting = true;
-                timerStop();
-                break;
-            default:
-                $scope.isWaiting = true;
-                break;
             }
         }
         if ($scope.group !== null && $scope.group.stage >= 0) {
@@ -229,13 +195,22 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', 'LogService', '$interval
                 if (title !== '') {
                     $scope.title = 'Phase: ' + $scope.session.phase.key + ', Period: ' + $scope.session.period.key + ', Stage: ' + $scope.group.stage;
                 }
+                current_price = ($scope.session.input_step_max * $scope.session.input_step_size) - (parseInt(time_left / $scope.session.input_step_time, 10) * $scope.session.input_step_size);
+                if ($scope.subject.group.stage === 8) {
+                    $scope.subject.my_bid = current_price;
+                } else if ($scope.subject.group.stage === 14) {
+                    $scope.subject.my_ask = current_price;
+                }
             }
         }
         $scope.$apply();
     });
 
     $scope.$on('socket-closed', function () {
-        $scope.isWaiting = false;
+        $scope.isConnected = false;
+        $scope.isWaiting = true;
+        timerClear();
+        $scope.$apply();
     });
 
     $scope.$on('$destroy', function () {
