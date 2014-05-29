@@ -591,7 +591,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                 raise InvalidOperationException(
                     'A default value will be used for you'
                     + ' unless you enter a valid number.')
-            elif re.match('^\d+(\.\d+){0,1}$', my_provide) is None \
+            elif re.match('^\d+(\.\d+){0,1}$', str(my_provide)) is None \
                     or float(my_provide) < 0 \
                     or float(my_provide) > 4 \
                     or (

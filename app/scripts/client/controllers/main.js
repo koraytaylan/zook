@@ -72,6 +72,13 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', '$interval', function ($
     };
 
     $scope.continue = function () {
+        if ($scope.isMessageBoxOpen) {
+            $scope.$broadcast('message-box-close');
+            return;
+        }
+        if ($scope.isWaiting) {
+            return;
+        }
         $scope.isWaiting = true;
         localStorage.setItem('subject.name', $scope.subject.name);
         socket
@@ -215,5 +222,13 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', '$interval', function ($
 
     $scope.$on('$destroy', function () {
         $interval.cancel($scope.priceTimer);
+    });
+
+    $scope.$on('message-box-open', function () {
+        $scope.isMessageBoxOpen = true;
+    });
+
+    $scope.$on('message-box-close', function () {
+        $scope.isMessageBoxOpen = false;
     });
 }]);

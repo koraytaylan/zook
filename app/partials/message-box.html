@@ -1,4 +1,4 @@
-<div class="modal {{isActive && 'show' || 'hide'}}">
+<div class="modal {{isActive && 'show' || 'hide'}}" ng-keyup="$event.keyCode == 13 ? close() : null">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">

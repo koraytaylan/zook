@@ -4,10 +4,11 @@ import random
 import threading
 import handlers
 import os
-import json
+import ujson as json
 import time
 import copy
 import time
+import decimal
 
 
 def roundup(x, y):
@@ -40,8 +41,8 @@ class Session(object):
         self.is_finished = False
         self.is_all_ready = False
 
-        self.cost_low = 3.0
-        self.cost_high = 5.5
+        self.cost_low = decimal.Decimal('3.0')
+        self.cost_high = decimal.Decimal('5.5')
         self.quantity_max = 10  # Maximum feasible quantity
         self.input_min = 0
         self.input_max = 4
@@ -64,22 +65,22 @@ class Session(object):
         self.starting_balance = 12
         self.starting_balance_min = 0
         self.starting_balance_max = 32
-        self.starting_balance_incrementer = 0.25
+        self.starting_balance_incrementer = decimal.Decimal('0.25')
 
         # Show up fee
         self.show_up_fee = 5
         self.show_up_fee_min = 0
         self.show_up_fee_max = 20
-        self.show_up_fee_incrementer = 0.25
+        self.show_up_fee_incrementer = decimal.Decimal('0.25')
 
         # Maximum loss
         self.maximum_loss = 20
         self.maximum_loss_min = 0
         self.maximum_loss_max = 40
-        self.maximum_loss_incrementer = 0.25
+        self.maximum_loss_incrementer = decimal.Decimal('0.25')
 
         # Bid and Ask steps
-        self.input_step_size = 0.1
+        self.input_step_size = decimal.Decimal('0.1')
         self.input_step_time = 1
         self.input_step_max = 0
 
@@ -156,7 +157,9 @@ class Session(object):
                 for k in j:
                     q += 1
                     if q + 1 < len(j):
-                        qs.append(self.AValues[s][r][q + 1] - k)
+                        v = decimal.Decimal(str(k))
+                        vu = decimal.Decimal(str(self.AValues[s][r][q + 1]))
+                        qs.append(vu - v)
                 rs.append(qs)
             self.AValueUp.append(rs)
 
@@ -287,7 +290,7 @@ class Period(object):
         self.groups = {}
         self.profits = {}
         self.balances = {}
-        self.cost = 0
+        self.cost = decimal.Decimal('0')
 
     def start(self):
         session = self.phase.session
@@ -456,10 +459,12 @@ class Group(object):
                     s.my_provide = rp
                 elif s.my_provide is None:
                     s.my_provide = s.default_provide
-                group.provides[s.key] = float(s.my_provide)
-                group.sum_provides += float(s.my_provide)
+                else:
+                    s.my_provide = decimal.Decimal(str(s.my_provide))
+                group.provides[s.key] = s.my_provide
+                group.sum_provides += s.my_provide
             group.sum_halvers = len(
-                list(s for s in ss if s.my_provide is not None and float(s.my_provide) - float(s.my_provide) > 0)
+                list(s for s in ss if s.my_provide is not None and s.my_provide - int(s.my_provide) > 0)
             )
             group.quantity_reached = min(session.quantity_max, int(group.sum_provides))
             group.some_refund = 0
@@ -467,6 +472,16 @@ class Group(object):
                 or group.sum_halvers == 3 \
                     or group.sum_halvers == 5:
                 group.some_refund = 1
+            for i, s in enumerate(ss):
+                s.my_cost_unit = s.my_provide
+                not_integer = s.my_provide - s.my_provide > 0
+                if not_integer and group.some_refund == 1:
+                    s.my_cost_unit = s.my_provide - (decimal.Decimal('0.5') / group.sum_halvers)
+                s.my_cost = period.cost * s.my_cost_unit
+                param = session.AValuesParamSets[ph][pe]
+                v = decimal.Decimal(str(session.AValues[param][s.role][group.quantity_reached]))
+                s.tent_profit = v - s.my_cost
+                s.apply_profit(s.tent_profit)
             if (ph > 1):
                 group.quantity_initial = group.quantity_reached
                 group.quantity_up = group.quantity_initial + 1
@@ -476,17 +491,6 @@ class Group(object):
                     group.direction = 1
                 elif group.quantity_up == 11:
                     group.direction = -1
-            for i, s in enumerate(ss):
-                s.my_cost_unit = float(s.my_provide)
-                not_integer = float(s.my_provide) - float(s.my_provide) > 0
-                if not_integer and group.some_refund == 1:
-                    s.my_cost_unit = s.my_provide - 0.5 / group.sum_halvers
-                s.my_cost = period.cost * s.my_cost_unit
-                param = session.AValuesParamSets[ph][pe]
-                s.tent_profit = session.AValues[param][s.role][group.quantity_reached] - s.my_cost
-                s.period_profit = s.tent_profit
-                s.total_profit += s.period_profit
-                s.current_balance += s.period_profit
             return self.next_stage()
         elif group.stage == 2:
             for i, s in enumerate(ss):
@@ -531,15 +535,17 @@ class Group(object):
             if group.direction == -1:
                 return self.next_stage()
             for i, s in enumerate(ss):
-                default_bid = min(period.cost, roundup(s.value_up, 0.5))
+                default_bid = decimal.Decimal(min(period.cost, roundup(s.value_up, 0.5)))
                 s.time_left = 1
                 if s.is_robot or s.is_suspended:
                     s.my_bid = s.value_up
                 elif s.my_bid == -1:
                     s.my_bid = default_bid
                     s.time_left = 7
-                group.bids[s.key] = float(s.my_bid)
-                group.sum_bids += float(s.my_bid)
+                else:
+                    s.my_bid = decimal.Decimal(str(s.my_bid))
+                group.bids[s.key] = s.my_bid
+                group.sum_bids += s.my_bid
             group.up_covered = 0
             if group.sum_bids >= period.cost:
                 group.up_covered = 1
@@ -574,8 +580,10 @@ class Group(object):
                 elif s.my_ask == -1:
                     s.my_ask = default_ask
                     s.time_left = 7
-                group.asks[s.key] = float(s.my_ask)
-                group.sum_asks += float(s.my_ask)
+                else:
+                    s.my_ask = decimal.Decimal(str(s.my_ask))
+                group.asks[s.key] = s.my_ask
+                group.sum_asks += s.my_ask
             group.down_covered = 0
             if group.sum_asks <= period.cost:
                 group.down_covered = 1
@@ -608,11 +616,10 @@ class Group(object):
                     s.aft_profit = s.my_rebate - s.value_down
                 else:
                     s.aft_profit = 0
-                s.period_profit = s.aft_profit
+                profit = s.aft_profit
                 if ph == 2 or pe % 2 == 0:
-                    s.period_profit = s.tent_profit + s.aft_profit
-                s.total_profit += s.aft_profit
-                s.current_balance += s.period_profit
+                    profit = s.tent_profit + s.aft_profit
+                s.apply_profit(profit)
                 if s.current_balance < -session.maximum_loss:
                     s.is_robot = True
                     s.set_state('robot')
@@ -720,7 +727,7 @@ class Subject(object):
     def is_active(self):
         return int(self.state / 100) == 1 and not self.is_suspended and not self.is_robot
 
-    def add_balance(self, amount):
+    def apply_profit(self, amount):
         self.current_balance += amount
         self.phase_profit += amount
         self.period_profit += amount
@@ -1012,5 +1019,5 @@ class Application(tornado.web.Application):
             os.makedirs(self.data_path)
         with open(os.path.join(self.data_path, 'session-' + session.key + '.json'), 'w') as f:
             d = self.clone_session(session)
-            j = json.dumps(d, sort_keys=True)
+            j = json.dumps(d)
             f.write(j)

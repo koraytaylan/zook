@@ -67,10 +67,14 @@
               </div>
             </div>
           </form>
-          <ul class="nav navbar-nav navbar-right">
-            <li>Phase: {{session.phase.key}}</li>
-            <li>Period: {{session.period.key}}</li>
-          </ul>
+          <form class="navbar-form navbar-right">
+            <div class="btn-toolbar">
+              <ul class="nav nav-pills" ng-if="session.is_started">
+                <li>Phase <span class="badge">{{session.phase.key}}</span></li>
+                <li>Period <span class="badge">{{session.period.key}}</span></li>
+              </ul>
+            </div>
+          </form>
         </div><!-- /.navbar-collapse -->
       </div><!-- /.container-fluid -->
     </nav>
