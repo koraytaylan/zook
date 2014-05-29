@@ -671,12 +671,9 @@ class Subject(object):
         self.default_provide = 0
 
         self.time_left = 0
-<<<<<<< HEAD
-=======
         self.timer_started_at = 0
         self.time_up = 0
         self.is_participating = False
->>>>>>> master
 
         self.value_up = 0
         self.value_down = 0
