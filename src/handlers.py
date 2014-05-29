@@ -1,19 +1,15 @@
 import zook
 import tornado.websocket
-import time
-import json
 import uuid
+import time
+import ujson as json
 import codecs
 import os
 import sys
 import traceback
-import logging
-import threading
 import re
 import openpyxl
 from collections import OrderedDict
-import jsonpickle
-import copy
 
 
 class ClientHandler(tornado.web.RequestHandler):
@@ -55,6 +51,7 @@ class ExportHandler(tornado.web.RequestHandler):
     def render(self, key):
         wb = openpyxl.Workbook(encoding='utf-8')
         ws = wb.active
+        ws.title = 'Session'
         path_json = os.path.join(self.application.data_path, 'session-' + key + '.json')
         path_xlsx = os.path.join(self.application.data_path, 'session-' + key + '.xlsx')
         data = None
@@ -103,11 +100,53 @@ class ExportHandler(tornado.web.RequestHandler):
                     subjects = OrderedDict(sorted(g['subjects'].items(), key=lambda t: t[1]['name']))
                     for s in subjects.values():
                         col = 0
-                        cells = self.generate_row(ph, pe, g, s)
+                        cells = self.generate_session_row(ph, pe, g, s)
                         for c in cells:
                             ws.cell(row=row, column=col).value = c
                             col += 1
                         row += 1
+        ws = wb.create_sheet()
+        ws.title = 'Subjects'
+        headers = (
+            'Subject',
+            'Suspended',
+            'Robot',
+            'Balance',
+            'TotalProfit',
+            'RealName',
+            'IdentificationNumber',
+            'Address',
+            'PostalCode',
+            'Location',
+            'Email'
+        )
+        row = 0
+        col = 0
+        for h in headers:
+            cell = ws.cell(row=row, column=col)
+            cell.value = h
+            cell.style.font.bold = True
+            col += 1
+        row = 1
+        for s in data['subjects']:
+            col = 0
+            r = (
+                s['name'],
+                s['is_suspended'],
+                s['is_robot'],
+                s['current_balance'],
+                s['total_profit'],
+                s['real_name'],
+                s['identification_number'],
+                s['address'],
+                s['postal_code'],
+                s['location'],
+                s['email']
+            )
+            for c in r:
+                ws.cell(row=row, column=col).value = c
+                col += 1
+            row += 1
         wb.save(path_xlsx)
 
     def set_cell_value(self, ws, row, column, value, centered=False):
@@ -117,7 +156,7 @@ class ExportHandler(tornado.web.RequestHandler):
             c.style.alignment.vertical = 'center'
         c.value = value
 
-    def generate_row(self, ph, pe, g, s):
+    def generate_session_row(self, ph, pe, g, s):
         role = None
         provide = None
         bid = None
@@ -168,51 +207,6 @@ class ExportHandler(tornado.web.RequestHandler):
         )
         return row
 
-    def render_(self, key):
-        wb = openpyxl.Workbook(encoding='utf-8')
-        ws = wb.active
-        path_json = os.path.join(self.application.data_path, 'session-' + key + '.json')
-        path_xlsx = os.path.join(self.application.data_path, 'session-' + key + '.xlsx')
-        data = None
-        with open(path_json, 'r') as f:
-            data = json.load(f)
-        ws['A3'] = 'Name'
-        ws['B3'] = 'Balance'
-        ws['C3'] = 'Total Profit'
-        ws['D3'] = 'Suspended'
-        phases = OrderedDict(sorted(data['phases'].items(), key=lambda t: int(t[0])))
-        row = 0
-        col = 4
-        for i, ph in enumerate(phases.values()):
-            row = 0
-            ws.cell(row=row, column=col).value = 'Phase ' + str(ph['key'])
-            periods = OrderedDict(sorted(ph['periods'].items(), key=lambda t: int(t[0])))
-            for j, pe in enumerate(periods.values()):
-                row = 1
-                ws.cell(row=row, column=col).value = 'Period ' + str(pe['key'])
-                ws.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col+4)
-                row = 2
-                ws.cell(row=row, column=col).value = 'Cost'
-                ws.cell(row=row, column=col+1).value = 'Profit'
-                ws.cell(row=row, column=col+2).value = 'Provide'
-                ws.cell(row=row, column=col+3).value = 'Bid'
-                ws.cell(row=row, column=col+4).value = 'Ask'
-                col += 5
-            #col += len(periods) + 4 + i
-        for i, s in enumerate(data['subjects'].values()):
-            ws.cell(row=i+3, column=0).value = s['name']
-            ws.cell(row=i+3, column=1).value = s['current_balance']
-            ws.cell(row=i+3, column=2).value = s['total_profit']
-            ws.cell(row=i+3, column=3).value = s['is_suspended'] or s['is_robot']
-        ws.column_dimensions['A'].width = 30
-        ws.column_dimensions['B'].width = 15
-        ws.column_dimensions['C'].width = 15
-        ws.column_dimensions['D'].width = 15
-        for r in list(range(3)):
-            for c in list(range(col)):
-                ws.cell(row=r, column=c).style.font.bold = True
-        wb.save(path_xlsx)
-
 
 class InvalidOperationException(Exception):
     pass
@@ -229,6 +223,7 @@ class InvalidMessageException(Exception):
 class SocketHandler(tornado.websocket.WebSocketHandler):
     """docstring for SocketHandler"""
     def open(self):
+        self.is_open = True
         self.key = str(uuid.uuid4())
         self.application.sockets[self.key] = self
         self.session = self.find_session()
@@ -238,6 +233,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         self.timer_started_at = None
 
     def on_close(self):
+        self.is_open = False
         if hasattr(self, 'key'):
             del self.application.sockets[self.key]
             s = self.application.get_subject(self.key)
@@ -285,12 +281,18 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                 reply = self.suspend_subject(o)
             elif message_type == 'start_session':
                 reply = self.start_session(o)
+            elif message_type == 'pause_session':
+                reply = self.pause_session(o)
+            elif message_type == 'resume_session':
+                reply = self.resume_session(o)
             elif message_type == 'stop_session':
                 reply = self.stop_session(o)
             elif message_type == 'continue_session':
                 reply = self.continue_session(o)
             elif message_type == 'skip_phase':
                 reply = self.skip_phase(o)
+            elif message_type == 'reset':
+                reply = self.reset(o)
             else:
                 raise InvalidOperationException('Unknown message type')
             self.send(message_type, reply, id)
@@ -313,12 +315,10 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         )
         if id is not None:
             m['id'] = id
-        # m = self.application.to_dict(m)
         js = json.dumps(m)
         self.write_message(js)
         del m
         del js
-        # self.write_message(jsonpickle.encode(m, unpicklable=True))
 
     def notify(self, message_type, message, is_global=False):
         ignore_list = (
@@ -329,7 +329,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         if message_type not in ignore_list:
             for e in self.session.experimenters.values():
                 socket = self.application.get_socket(e.key)
-                if socket is not None and socket is not self:
+                if socket is not None and socket.is_open and e.key is not self.key:
                     ses = self.application.clone_session(self.session)
                     socket.send('get_session', ses)
 
@@ -353,8 +353,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         session = None
         if len(self.application.sessions) > 0:
             session = next(
-                (s for s in self.application.sessions.values()
-                    if s.is_started is False),
+                (s for s in self.application.sessions.values()),
                 None
                 )
         if session is None:
@@ -376,7 +375,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             key = self.parse_key(message['data'])
             if key is not None:
                 socket = self.application.get_socket(key)
-                if socket is not None:
+                if socket is not None and socket.is_open:
                     socket.close()
                 del self.application.sockets[self.key]
                 self.key = key
@@ -389,10 +388,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                     sub = self.application.get_subject(self.key)
                     if sub is not None:
                         self.session = sub.session
-                        if sub.is_suspended:
-                            raise InvalidOperationException(
-                                'Your client has been suspended')
-                        elif zook.Subject.states[sub.state] == 'dropped':
+                        if zook.Subject.states[sub.state] == 'dropped':
                             sub.restore_state()
                     else:
                         self.session = self.find_session()
@@ -478,6 +474,18 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             subject.my_bid = data['my_bid']
         if 'my_ask' in data:
             subject.my_ask = data['my_ask']
+        if 'real_name' in data:
+            subject.real_name = data['real_name']
+        if 'identification_number' in data:
+            subject.identification_number = data['identification_number']
+        if 'address' in data:
+            subject.address = data['address']
+        if 'postal_code' in data:
+            subject.postal_code = data['postal_code']
+        if 'location' in data:
+            subject.location = data['location']
+        if 'email' in data:
+            subject.email = data['email']
         subject.decide_state()
         return subject
 
@@ -487,7 +495,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         key = message['data']
         socket = self.application.get_socket(key)
         subject = self.application.get_subject(key)
-        if socket is not None:
+        if socket is not None and socket.is_open:
             socket.close()
         if subject is not None:
             del self.session.subjects[key]
@@ -499,13 +507,15 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         self.check_data(message)
         self.check_experimenter()
         key = message['data']
-        socket = self.application.get_socket(key)
         subject = self.application.get_subject(key)
-        if socket is not None:
-            socket.close()
         if subject is not None:
             subject.is_suspended = True
-            subject.set_state('passive')
+            subject.set_state('robot')
+            socket = self.application.get_socket(key)
+            if socket is not None and socket.is_open:
+                sub = self.application.clone_subject(subject)
+                socket.send('get_subject', sub)
+            self.application.proceed(self.session)
             return True
         else:
             return False
@@ -534,6 +544,22 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         ses = self.application.clone_session(self.session)
         return ses
 
+    def pause_session(self, message):
+        self.check_experimenter()
+        if not self.session.is_started:
+            raise InvalidOperationException('Session is not started')
+        self.application.pause_session(self.session)
+        ses = self.application.clone_session(self.session)
+        return ses
+
+    def resume_session(self, message):
+        self.check_experimenter()
+        if not self.session.is_started:
+            raise InvalidOperationException('Session is not paused')
+        self.application.resume_session(self.session)
+        ses = self.application.clone_session(self.session)
+        return ses
+
     def stop_session(self, message):
         self.check_experimenter()
         self.application.stop_session(self.session)
@@ -542,54 +568,103 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
 
     def continue_session(self, message):
         self.check_data(message)
-        self.clear_timer()
+        self.process_input(message)
         self.set_subject(message)
-        subject = self.application.get_subject(self.key)
         if self.session.is_started:
-            self.process_input()
+            self.application.clear_timer(self.key)
             self.application.proceed(self.session)
+        subject = self.application.get_subject(self.key)
         s = self.application.clone_subject(subject)
         return s
 
-    def set_timer(self, seconds, func, args=None):
-        self.timer_started_at = int(time.time() * 1000)
-        self.timer = threading.Timer(seconds, func, args)
-        self.timer.start()
-
-    def clear_timer(self):
-        if self.timer is not None:
-            self.timer.cancel()
-            self.timer_started_at = None
-
-    def input_timeout(self):
-        subject = self.application.get_subject(self.key)
-        subject.set_state('waiting')
-        self.application.proceed(self.session)
-        sub = self.application.clone_subject(subject)
-        self.send('continue_session', sub)
-
-    def process_input(self):
+    def process_input(self, message):
+        if not self.session.is_started:
+            return
         subject = self.application.get_subject(self.key)
         group = subject.group
+        data = message['data']
         if group.stage == 0:
-            if subject.my_provide is None:
+            my_provide = None
+            if 'my_provide' in data:
+                my_provide = data['my_provide']
+            if my_provide is None:
                 raise InvalidOperationException(
                     'A default value will be used for you'
                     + ' unless you enter a valid number.')
-            elif re.match('^\d+(\.\d+){0,1}$', subject.my_provide) is None \
-                    or float(subject.my_provide) < 0 \
-                    or float(subject.my_provide) > 4 \
+            elif re.match('^\d+(\.\d+){0,1}$', my_provide) is None \
+                    or float(my_provide) < 0 \
+                    or float(my_provide) > 4 \
                     or (
-                        float(subject.my_provide) - float(subject.my_provide) > 0
-                        and float(subject.my_provide) - float(subject.my_provide) != 0.5
+                        float(my_provide) - float(my_provide) > 0
+                        and float(my_provide) - float(my_provide) != 0.5
                         ):
                 raise InvalidOperationException(
                     'The quantity must be at least 0,'
                     + ' at most 4, and a multiple of 1/2.'
                     )
+        elif group.stage == 16:
+            missing_fields = []
+            real_name = None
+            if 'real_name' in data:
+                real_name = data['real_name']
+            identification_number = None
+            if 'identification_number' in data:
+                identification_number = data['identification_number']
+            address = None
+            if 'address' in data:
+                address = data['address']
+            location = None
+            if 'location' in data:
+                location = data['location']
+            email = None
+            if 'email' in data:
+                email = data['email']
+            if not real_name or not real_name.strip():
+                missing_fields.append('Full name')
+            if not identification_number or not identification_number.strip():
+                missing_fields.append('Identification Number')
+            if not address or not address.strip():
+                missing_fields.append('Address')
+            if not location or not location.strip():
+                missing_fields.append('Location')
+            if not email or not email.strip():
+                missing_fields.append('Email')
+            if len(missing_fields) > 0:
+                error = 'Please fill the mandatory fields listed below,\n\n'
+                for f in missing_fields:
+                    error += '- {0}\n'.format(f)
+                raise InvalidOperationException(error)
 
     def skip_phase(self, message):
         self.check_experimenter()
         if self.session.is_started:
             self.session.phase.is_skipped = True
-        return True
+        ses = self.application.clone_session(self.session)
+        return ses
+
+    def reset(self, message):
+        self.check_experimenter()
+        ss = self.session.subjects.items()
+        es = self.session.experimenters.items()
+        self.application.sessions.pop(self.session.key, None)
+        session = zook.Session()
+        self.application.sessions[session.key] = session
+        self.session = session
+        e = self.application.experimenters[self.key]
+        e.session = session
+        session.experimenters[self.key] = e
+        for key, s in ss:
+            self.application.subjects.pop(key, None)
+            socket = self.application.get_socket(key)
+            if socket is not None and socket.is_open:
+                socket.close()
+        ses = self.application.clone_session(self.session)
+        for key, e in es:
+            if key is self.key:
+                continue
+            e.session = session
+            session.experimenters[key] = e
+            socket = self.application.get_socket(key)
+            if socket is not None and socket.is_open:
+                socket.send('get_session', ses)
+        return ses

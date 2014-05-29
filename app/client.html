@@ -20,7 +20,7 @@
           <div class="row">
             <div class="col-md-12">
 
-              <div class="panel panel-default">
+              <div class="panel panel-default" ng-if="isConnected">
                 <div class="panel-heading">
                   <div class="pull-left">
                     {{title}}
@@ -31,6 +31,10 @@
                   <div class="clearfix"></div>
                 </div>
                 <div class="panel-body" ng-switch on="subject.state_name">
+                  <div ng-switch-when="passive">
+                    <wait ng-if="!session.is_started"></wait>
+                    <p ng-if="session.is_started">Session is already started. Clients can't join ongoing sessions.</p>
+                  </div>
 
                   <div ng-switch-when="initial">
                     <form role="form">
@@ -42,7 +46,12 @@
                   </div>
 
                   <div ng-switch-when="waiting">
-                    <wait></wait>
+                    <wait ng-if="!session.is_finished"></wait>
+                    <div ng-if="session.is_finished">
+                        <p>The experiment has ended.</p>
+                        <p>Please wait quietly at your computer, until we come to you to pay you, or ask you to come to us.</p>
+                        <p>Please allow us to pay each person in privacy.</p>
+                    </div>
                   </div>
 
                   <div ng-switch-when="active">
@@ -56,13 +65,19 @@
                       <stage12 ng-switch-when="12"></stage12>
                       <stage13 ng-switch-when="13"></stage13>
                       <stage15 ng-switch-when="15"></stage15>
+                      <stage16 ng-switch-when="16"></stage16>
                     </div>
                   </div>
 
                   <div ng-switch-when="robot">
-                    <p>You have incurred losses that wiped out the <strong>{{session.starting_balance | currency}}</strong>, and at least <strong>{{session.maximum_loss | currency}}</strong> losses since.</p>
-                    <p>We will forgive these losses, but it is critical to the experiment that we do not let you continue.</p>
-                    <p>As soon as we have arranged for the experiment to continue, we will come get you, pay you your <strong>{{session.show_up_fee | currency}}</strong> show-up fee, and have you sign a receipt.</p>
+                    <div ng-if="subject.is_suspended">
+                      <p>Your client has been suspended.</p>
+                    </div>
+                    <div ng-if="!subject.is_suspended">
+                      <p>You have incurred losses that wiped out the <strong>{{session.starting_balance | currency}}</strong>, and at least <strong>{{session.maximum_loss | currency}}</strong> losses since.</p>
+                      <p>We will forgive these losses, but it is critical to the experiment that we do not let you continue.</p>
+                      <p>As soon as we have arranged for the experiment to continue, we will come get you, pay you your <strong>{{session.show_up_fee | currency}}</strong> show-up fee, and have you sign a receipt.</p>
+                    </div>
                   </div>
                   
                   <div class="clearfix"></div>

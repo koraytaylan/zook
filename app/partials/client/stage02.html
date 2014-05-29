@@ -8,4 +8,4 @@
 <p>The value to you of {{group.quantity_reached}} units of Zook is <strong>{{subject.my_value | currency}}</strong>. From this your cost of providing {{subject.my_cost_unit | number:1}}, <strong>{{subject.my_cost | currency}}</strong>, is subtracted.</p>
 <p>Your profit this period{{(session.phase.key == 2 || session.period.key % 2 == 0) && ', at this point,' || ''}} is <strong>{{subject.period_profit | currency}}</strong>, your earnings so far are <strong>{{subject.total_profit | currency}}</strong>.</p>
 <p>Your bank balance is currently <strong>{{subject.current_balance | currency}}</strong>.</p>
-<p ng-if="session.phase.key == 2 || session.period.key % 2 == 0">We will next consider {{group.direction > -1 && 'increasing to ' + group.quantity_up || 'decreasing to ' + group.quantity_down}} units.</p>
+<p ng-if="session.phase.key >= 2 && session.period.key % 2 == 0">We will next consider {{group.direction > -1 && 'increasing to ' + group.quantity_up || 'decreasing to ' + group.quantity_down}} units.</p>
