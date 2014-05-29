@@ -27,6 +27,16 @@ def roundup(x, y):
 class Session(object):
     """docstring for Session"""
 
+    currencies = (
+        'USD',
+        'EUR',
+        'TRY',
+        'CAD',
+        'AUD',
+        'CHF',
+        'GBP'
+    )
+
     def __init__(self):
         super(Session, self).__init__()
         self.created_at = time.time()
@@ -44,8 +54,6 @@ class Session(object):
         self.cost_low = decimal.Decimal('3.0')
         self.cost_high = decimal.Decimal('5.5')
         self.quantity_max = 10  # Maximum feasible quantity
-        self.input_min = 0
-        self.input_max = 4
 
         self.time_for_input = 0
         self.time_for_result = 0
@@ -80,14 +88,20 @@ class Session(object):
         self.maximum_loss_incrementer = decimal.Decimal('0.25')
 
         # Bid and Ask steps
+        self.input_min = 0
+        self.input_max = 4
         self.input_step_size = decimal.Decimal('0.1')
         self.input_step_time = 1
         self.input_step_max = 0
 
-        self.start_from_phase = 0
+        self.start_from_phase = 3
         self.start_from_period = 0
 
         self.label_identification_number = "Identification Number"
+
+        self.currency = 'USD'
+        self.exchange_rate = 1
+        self.smallest_coin = decimal.Decimal('0.25')
 
         self.AInitQ = [7, 5, 8, 4, 2, 6, 3, 5, 1, 2, 6, 4]
         self.ADirectionPhase1 = [1, 1, -1, 0, -1, 0, -1, 0, 1, 1, -1, 0]
@@ -474,7 +488,7 @@ class Group(object):
                 group.some_refund = 1
             for i, s in enumerate(ss):
                 s.my_cost_unit = s.my_provide
-                not_integer = s.my_provide - s.my_provide > 0
+                not_integer = s.my_provide - int(s.my_provide) > 0
                 if not_integer and group.some_refund == 1:
                     s.my_cost_unit = s.my_provide - (decimal.Decimal('0.5') / group.sum_halvers)
                 s.my_cost = period.cost * s.my_cost_unit

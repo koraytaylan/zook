@@ -2,7 +2,7 @@
 /*global angular, app, $*/
 'use strict';
 
-app.controller('MessageBoxCtrl', [ '$scope', function ($scope) {
+app.controller('MessageBoxCtrl', [ '$scope', '$rootScope', function ($scope, $rootScope) {
     var initialize = function () {
         $scope.isActive = false;
         $scope.isModal = false;
@@ -15,7 +15,7 @@ app.controller('MessageBoxCtrl', [ '$scope', function ($scope) {
 
     $scope.close = function () {
         initialize();
-    }
+    };
 
     $scope.$on('message-box-open', function (event, message) {
         $scope.isActive = true;

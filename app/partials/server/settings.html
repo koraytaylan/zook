@@ -1,0 +1,135 @@
+<div class="row">
+  <form class="form-horizontal" role="form">
+    <fieldset ng-disabled="session.is_started">
+      <div class="col-md-4 col-md-offset-2">
+          <div class="form-group" ng-disabled="session.is_started">
+            <label for="cmbStartFromPhase" class="{{classLabel}}">Start From Phase</label>
+            <div class="{{classInput}}">
+              <select id="cmbStartFromPhase" class="form-control" ng-model="session.start_from_phase">
+                <option ng-repeat="value in range(0, 4)">{{value}}</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="cmbStartFromPeriod" class="{{classLabel}}">Start From Period</label>
+            <div class="{{classInput}}">
+              <select id="cmbStartFromPeriod" class="form-control" ng-model="session.start_from_period">
+                <option ng-repeat="value in range(0, 24)">{{value}}</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="cmbGroupSize" class="{{classLabel}}">Group Size</label>
+            <div class="{{classInput}}">
+              <select id="cmbGroupSize" class="form-control" ng-model="session.group_size">
+                <option ng-repeat="value in range(1, 7)">{{value}}</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="txtGroupCount" class="{{classLabel}}">Group Count</label>
+            <div class="{{classInput}}">
+              <input type="text" class="form-control" id="txtGroupCount" ng-model="session.group_count">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="cmbQuantityMax" class="{{classLabel}}">Maximum Quantity</label>
+            <div class="{{classInput}}">
+              <select id="cmbQuantityMax" class="form-control" ng-model="session.quantity_max">
+                <option ng-repeat="value in range(1, 11)">{{value}}</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="txtInputMin" class="{{classLabel}}">Minimum Input</label>
+            <div class="{{classInput}}">
+              <input type="text" class="form-control" id="txtInputMin" ng-model="session.input_min">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="txtInputMax" class="{{classLabel}}">Maximum Input</label>
+            <div class="{{classInput}}">
+              <input type="text" class="form-control" id="txtInputMax" ng-model="session.input_max">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="txtInputStepSize" class="{{classLabel}}">Input Step Size</label>
+            <div class="{{classInput}}">
+              <input type="text" class="form-control" id="txtInputStepSize" ng-model="session.input_step_size">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="txtInputStepTime" class="{{classLabel}}">Input Step Time</label>
+            <div class="{{classInput}}">
+              <input type="text" class="form-control" id="txtInputStepTime" ng-model="session.input_step_time">
+            </div>
+          </div>
+      </div>
+      <div class="col-md-4">
+          <div class="form-group">
+            <label for="txtCostLow" class="{{classLabel}}">Cost Low</label>
+            <div class="{{classInput}}">
+              <input type="text" class="form-control" id="txtCostLow" ng-model="session.cost_low">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="txtCostHigh" class="{{classLabel}}">Cost High</label>
+            <div class="{{classInput}}">
+              <input type="text" class="form-control" id="txtCostHigh" ng-model="session.cost_high">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="txtStartingBalance" class="{{classLabel}}">Starting Balance</label>
+            <div class="{{classInput}}">
+              <input type="text" class="form-control" id="txtStartingBalance" ng-model="session.starting_balance">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="txtShowUpFee" class="{{classLabel}}">Show Up Fee</label>
+            <div class="{{classInput}}">
+              <input type="text" class="form-control" id="txtShowUpFee" ng-model="session.show_up_fee">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="txtMaximumLoss" class="{{classLabel}}">Maximum Loss</label>
+            <div class="{{classInput}}">
+              <input type="text" class="form-control" id="txtMaximumLoss" ng-model="session.maximum_loss">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="cmbCurrency" class="{{classLabel}}">Currency</label>
+            <div class="{{classInput}}">
+              <select id="cmbCurrency" class="form-control" ng-model="session.currency">
+                <option label="USD $">USD</option>
+                <option label="EUR €">EUR</option>
+                <option label="GBP £">GBP</option>
+                <option label="TRY ₺">TRY</option>
+                <option label="CAD C$">CAD</option>
+                <option label="AUD A$">AUD</option>
+                <option label="CHF">CHF</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="txtExchangeRate" class="{{classLabel}}">Maximum Loss</label>
+            <div class="{{classInput}}">
+              <input type="text" class="form-control" id="txtExchangeRate" ng-model="session.exchange_rate">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="txtSmallestCoin" class="{{classLabel}}">Smallest Coin</label>
+            <div class="{{classInput}}">
+              <input type="text" class="form-control" id="txtSmallestCoin" ng-model="session.smallest_coin">
+            </div>
+          </div>
+      </div>
+    </fieldset>
+  </form>
+</div>
+<div class="row">
+  <div class="col-md-8 col-md-offset-2">
+    <div class="pull-right">
+      <button type="submit" class="btn btn-primary" ng-click="save()" ng-disabled="session.is_started"><span class="glyphicon glyphicon-floppy-disk"></span> Save</button>
+    </div>
+  </div>
+</div>

@@ -10,6 +10,7 @@ import traceback
 import re
 import openpyxl
 from collections import OrderedDict
+import decimal
 
 
 class ClientHandler(tornado.web.RequestHandler):
@@ -267,6 +268,8 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                 reply = self.init(o)
             elif message_type == 'get_session':
                 reply = self.get_session(o)
+            elif message_type == 'set_session':
+                reply = self.set_session(o)
             elif message_type == 'get_group':
                 reply = self.get_group(o)
             elif message_type == 'get_subject':
@@ -368,6 +371,9 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         except:
             return None
 
+    def is_numeric(self, value):
+        return value is not None and re.match('^\d+(\.\d+){0,1}$', str(value)) is not None
+
     def init(self, message):
         data = {}
         subject = None
@@ -400,6 +406,46 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         return data
 
     def get_session(self, message):
+        ses = self.application.clone_session(self.session)
+        return ses
+
+    def set_session(self, message):
+        self.check_experimenter()
+        self.check_data(message)
+        data = message['data']
+        session = self.session
+        if 'start_from_phase' in data and self.is_numeric(data['start_from_phase']):
+            session.start_from_phase = int(data['start_from_phase'])
+        if 'start_from_period' in data and self.is_numeric(data['start_from_period']):
+            session.start_from_period = int(data['start_from_period'])
+        if 'group_size' in data and self.is_numeric(data['group_size']):
+            session.group_size = int(data['group_size'])
+        if 'group_count' in data and self.is_numeric(data['group_count']):
+            session.group_count = int(data['group_count'])
+        if 'quantity_max' in data and self.is_numeric(data['quantity_max']):
+            session.quantity_max = int(data['quantity_max'])
+        if 'input_max' in data and self.is_numeric(data['input_max']):
+            session.input_max = int(data['input_max'])
+        if 'input_min' in data and self.is_numeric(data['input_min']):
+            session.input_min = int(data['input_min'])
+        if 'input_step_size' in data and self.is_numeric(data['input_step_size']):
+            session.input_step_size = decimal.Decimal(str(data['input_step_size']))
+        if 'input_step_time' in data and self.is_numeric(data['input_step_time']):
+            session.input_step_time = int(data['input_step_time'])
+        if 'cost_low' in data and self.is_numeric(data['cost_low']):
+            session.cost_low = decimal.Decimal(str(data['cost_low']))
+        if 'cost_high' in data and self.is_numeric(data['cost_high']):
+            session.cost_high = decimal.Decimal(str(data['cost_high']))
+        if 'starting_balance' in data and self.is_numeric(data['starting_balance']):
+            session.starting_balance = decimal.Decimal(str(data['starting_balance']))
+        if 'show_up_fee' in data and self.is_numeric(data['show_up_fee']):
+            session.show_up_fee = decimal.Decimal(str(data['show_up_fee']))
+        if 'exchange_rate' in data and self.is_numeric(data['exchange_rate']):
+            session.exchange_rate = decimal.Decimal(str(data['exchange_rate']))
+        if 'smallest_coin' in data and self.is_numeric(data['smallest_coin']):
+            session.smallest_coin = decimal.Decimal(str(data['smallest_coin']))
+        if 'currency' in data and data['currency'] in session.currencies:
+            session.currency = data['currency']
         ses = self.application.clone_session(self.session)
         return ses
 
@@ -591,7 +637,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
                 raise InvalidOperationException(
                     'A default value will be used for you'
                     + ' unless you enter a valid number.')
-            elif re.match('^\d+(\.\d+){0,1}$', str(my_provide)) is None \
+            elif not self.is_numeric(my_provide) \
                     or float(my_provide) < 0 \
                     or float(my_provide) > 4 \
                     or (
