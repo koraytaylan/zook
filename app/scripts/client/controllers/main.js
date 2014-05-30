@@ -127,11 +127,19 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', '$interval', function ($
         }
         return $scope.subject.my_bid;
     };
+
     $scope.getAsk = function () {
         if ($scope.subject.my_ask < 0) {
             return 0;
         }
         return $scope.subject.my_ask;
+    };
+
+    $scope.getProvide = function () {
+        if ($scope.subject.my_provide < 0) {
+            return 0;
+        }
+        return $scope.subject.my_provide;
     };
 
     $scope.range = function (start, end) {
@@ -175,9 +183,10 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', '$interval', function ($
             $scope.subject = data;
             $scope.session = data.session;
             $scope.group = data.group;
+            $scope.subject.my_provide = null;
             timerClear();
             $scope.isWaiting = $scope.subject.state_name === 'waiting';
-            if ($scope.subject.time_left > 0) {
+            if ($scope.subject.time_left > 0 && !$scope.isWaiting) {
                 time_left = parseInt(($scope.subject.time_up - new Date().getTime()) / 1000, 10);
                 if (time_left <= 0) {
                     time_left = 1;

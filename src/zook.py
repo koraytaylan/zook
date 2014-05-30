@@ -323,7 +323,22 @@ class Period(object):
             s.role = roles[i % session.group_size]
             g.subjects[s.key] = s
             g.roles[s.key] = s.role
+            s.my_cost = 0
+            s.my_bid = -1
+            s.my_ask = -1
+            s.my_tax = -1
+            s.my_rebate = -1
+            s.my_provide = -1
+            s.example_cost = 0
+            s.default_provide = 0
+            s.value_up = 0
+            s.value_down = 0
+            s.tent_profit = 0
             s.period_profit = 0
+            s.phase_profit = 0
+            s.total_profit = 0
+            s.aft_profit = 0
+            s.current_balance = 0
 
         ps = session.AValuesParamSets[self.phase.key][self.key]
         if ps < 2:
@@ -677,28 +692,26 @@ class Subject(object):
         self.role = 0
 
         self.my_cost = 0
+        self.my_bid = -1
+        self.my_ask = -1
+        self.my_tax = -1
+        self.my_rebate = -1
+        self.my_provide = -1
+        self.example_cost = 0
+        self.default_provide = 0
+        self.value_up = 0
+        self.value_down = 0
         self.tent_profit = 0
         self.period_profit = 0
         self.phase_profit = 0
         self.total_profit = 0
         self.aft_profit = 0
         self.current_balance = 0
-        self.my_bid = -1
-        self.my_ask = -1
-        self.my_tax = -1
-        self.my_rebate = -1
-
-        self.example_cost = 0
-        self.my_provide = None
-        self.default_provide = 0
 
         self.time_left = 0
         self.timer_started_at = 0
         self.time_up = 0
         self.is_participating = False
-
-        self.value_up = 0
-        self.value_down = 0
 
         self.real_name = None
         self.identification_number = None
