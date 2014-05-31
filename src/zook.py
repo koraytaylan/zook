@@ -94,7 +94,7 @@ class Session(object):
         self.input_step_time = 1
         self.input_step_max = 0
 
-        self.start_from_phase = 3
+        self.start_from_phase = 0
         self.start_from_period = 0
 
         self.label_identification_number = "Identification Number"
@@ -217,6 +217,7 @@ class Session(object):
         self.phases = {}
         self.phase = None
         self.period = None
+        self.calculate_amounts_to_pay()
         for key, s in self.subjects.items():
             s.is_participating = False
             s.is_suspended = False
@@ -229,6 +230,13 @@ class Session(object):
 
     def finish(self):
         self.is_finished = True
+        self.calculate_amounts_to_pay()
+
+    def calculate_amounts_to_pay(self):
+        ss = self.get_subjects_by_active()
+        for s in ss:
+            if not s.is_suspended and not s.is_robot:
+                s.amount_to_pay = self.smallest_coin * round((s.current_balance + self.show_up_fee) * self.exchange_rate / self.smallest_coin)
 
     def get_subjects_by_active(self):
         ss = self.subjects.values()
@@ -323,22 +331,21 @@ class Period(object):
             s.role = roles[i % session.group_size]
             g.subjects[s.key] = s
             g.roles[s.key] = s.role
-            s.my_cost = 0
-            s.my_bid = -1
-            s.my_ask = -1
-            s.my_tax = -1
-            s.my_rebate = -1
-            s.my_provide = -1
-            s.example_cost = 0
-            s.default_provide = 0
-            s.value_up = 0
-            s.value_down = 0
-            s.tent_profit = 0
-            s.period_profit = 0
-            s.phase_profit = 0
-            s.total_profit = 0
-            s.aft_profit = 0
-            s.current_balance = 0
+            self.my_cost = decimal.Decimal(0)
+            self.my_bid = decimal.Decimal(-1)
+            self.my_ask = decimal.Decimal(-1)
+            self.my_tax = decimal.Decimal(-1)
+            self.my_rebate = decimal.Decimal(-1)
+            self.my_provide = decimal.Decimal(-1)
+            self.example_cost = decimal.Decimal(0)
+            self.default_provide = decimal.Decimal(0)
+            self.value_up = decimal.Decimal(0)
+            self.value_down = decimal.Decimal(0)
+            self.tent_profit = decimal.Decimal(0)
+            self.period_profit = decimal.Decimal(0)
+            self.phase_profit = decimal.Decimal(0)
+            self.total_profit = decimal.Decimal(0)
+            self.aft_profit = decimal.Decimal(0)
 
         ps = session.AValuesParamSets[self.phase.key][self.key]
         if ps < 2:
@@ -564,7 +571,7 @@ class Group(object):
             if group.direction == -1:
                 return self.next_stage()
             for i, s in enumerate(ss):
-                default_bid = decimal.Decimal(min(period.cost, roundup(s.value_up, 0.5)))
+                default_bid = decimal.Decimal(str(min(period.cost, roundup(s.value_up, 0.5))))
                 s.time_left = 1
                 if s.is_robot or s.is_suspended:
                     s.my_bid = s.value_up
@@ -646,9 +653,13 @@ class Group(object):
                 else:
                     s.aft_profit = 0
                 profit = s.aft_profit
-                if ph == 2 or pe % 2 == 0:
+                is_aftermarket = ph == 1 or (ph != 2 and pe % 2 != 0)
+                if not is_aftermarket:
                     profit = s.tent_profit + s.aft_profit
                 s.apply_profit(profit)
+                # Rollback balances if there was aftermarket and the outcome was 0
+                if not is_aftermarket and group.outcome == 0:
+                    s.current_balance = period.balances[s.key]
                 if s.current_balance < -session.maximum_loss:
                     s.is_robot = True
                     s.set_state('robot')
@@ -691,28 +702,30 @@ class Subject(object):
         self.group = None
         self.role = 0
 
-        self.my_cost = 0
-        self.my_bid = -1
-        self.my_ask = -1
-        self.my_tax = -1
-        self.my_rebate = -1
-        self.my_provide = -1
-        self.example_cost = 0
-        self.default_provide = 0
-        self.value_up = 0
-        self.value_down = 0
-        self.tent_profit = 0
-        self.period_profit = 0
-        self.phase_profit = 0
-        self.total_profit = 0
-        self.aft_profit = 0
-        self.current_balance = 0
+        self.current_balance = decimal.Decimal(0)
+
+        self.my_cost = decimal.Decimal(0)
+        self.my_bid = decimal.Decimal(-1)
+        self.my_ask = decimal.Decimal(-1)
+        self.my_tax = decimal.Decimal(-1)
+        self.my_rebate = decimal.Decimal(-1)
+        self.my_provide = decimal.Decimal(-1)
+        self.example_cost = decimal.Decimal(0)
+        self.default_provide = decimal.Decimal(0)
+        self.value_up = decimal.Decimal(0)
+        self.value_down = decimal.Decimal(0)
+        self.tent_profit = decimal.Decimal(0)
+        self.period_profit = decimal.Decimal(0)
+        self.phase_profit = decimal.Decimal(0)
+        self.total_profit = decimal.Decimal(0)
+        self.aft_profit = decimal.Decimal(0)
 
         self.time_left = 0
         self.timer_started_at = 0
         self.time_up = 0
         self.is_participating = False
 
+        self.amount_to_pay = decimal.Decimal(0)
         self.real_name = None
         self.identification_number = None
         self.address = None
