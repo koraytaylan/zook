@@ -14,3 +14,9 @@ app.filter('currency', ['$filter', function ($filter) {
             + $filter('number')(amount, 2);
     };
 }]);
+
+app.directive('focus', [function () {
+    return function (scope, element) {
+        element[0].focus();
+    };
+}]);

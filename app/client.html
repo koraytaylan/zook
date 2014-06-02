@@ -9,11 +9,11 @@
     <link rel="stylesheet" href="bower_components/bootstrap/dist/css/bootstrap.css" />
     <!-- endbower -->
     <!-- endbuild -->
-    <!-- build:css({.tmp,app}) styles/main.css -->
+    <!-- build:css({.tmp,app}) styles/client.css -->
     <link rel="stylesheet" href="styles/client.css">
     <!-- endbuild -->
   </head>
-  <body ng-controller="MainCtrl">
+  <body ng-controller="MainCtrl" ng-keyup="$event.keyCode == 13 ? continue() : null">
     <div class="block" style="height:100%;">
       <div class="centered">
         <div class="container-fluid" style="text-align:left;">
@@ -40,7 +40,7 @@
                     <form role="form">
                       <div class="form-group">
                         <label class="control-label" for="txtClientName">Enter a name for this client</label>
-                        <input id="txtClientName" ng-model="subject.name" type="text" class="form-control">
+                        <input id="txtClientName" ng-model="subject.name" type="text" class="form-control" focus>
                       </div>
                     </form>
                   </div>
@@ -84,7 +84,7 @@
                 </div>
                 <div class="panel-footer">
                   <div class="pull-left">
-                    <button type="button" class="btn btn-info" ng-click="instructionsVisible = !instructionsVisible">
+                    <button type="button" class="btn btn-info" ng-if="session.is_started && !session.is_finished" ng-click="instructionsVisible = !instructionsVisible">
                       <span class="glyphicon glyphicon-info-sign"></span> Instructions
                     </button>
                   </div>
