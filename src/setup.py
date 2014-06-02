@@ -7,6 +7,6 @@ setup(
     ext_modules = [
         Extension("zook", ["src/zook.py"]),
         Extension("handlers", ["src/handlers.py"]),
-        Extension("main", ["src/main.py"])
+        Extension("test", ["test.pyx"])
     ]
 )
