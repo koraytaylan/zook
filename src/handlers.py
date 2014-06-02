@@ -517,11 +517,14 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         elif not subject.name:
             raise InvalidOperationException('Client name can not be empty')
         if 'my_provide' in data:
-            subject.my_provide = data['my_provide']
+            my_provide = data['my_provide'] or 0
+            subject.my_provide = decimal.Decimal(my_provide)
         if 'my_bid' in data:
-            subject.my_bid = data['my_bid']
+            my_bid = data['my_bid'] or 0
+            subject.my_bid = decimal.Decimal(my_bid)
         if 'my_ask' in data:
-            subject.my_ask = data['my_ask']
+            my_ask = data['my_ask'] or 0
+            subject.my_ask = decimal.Decimal(my_ask)
         if 'real_name' in data:
             subject.real_name = data['real_name']
         if 'identification_number' in data:
@@ -694,7 +697,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         self.check_experimenter()
         ss = self.session.subjects.items()
         es = self.session.experimenters.items()
-        self.application.sessions.pop(self.session.key, None)
+        self.application.sessions.clear()
         session = zook.Session()
         self.application.sessions[session.key] = session
         self.session = session
