@@ -475,7 +475,6 @@ class Group(object):
                     defp += 1
                 s.default_provide = defp
                 s.my_provide = None
-                s.time_left = session.time_for_input
         elif group.stage == 1:
             for i, s in enumerate(ss):
                 if s.is_robot or s.is_suspended:
@@ -563,6 +562,7 @@ class Group(object):
             if group.direction == -1:
                 return self.next_stage()
             for i, s in enumerate(ss):
+                s.time_left = session.time_for_input
                 s.my_bid = decimal.Decimal('-1')
                 s.time_left = int(session.input_step_max * session.input_step_time)
             group.label_continue = 'Accept'
