@@ -331,21 +331,21 @@ class Period(object):
             s.role = roles[i % session.group_size]
             g.subjects[s.key] = s
             g.roles[s.key] = s.role
-            self.my_cost = decimal.Decimal(0)
-            self.my_bid = decimal.Decimal(-1)
-            self.my_ask = decimal.Decimal(-1)
-            self.my_tax = decimal.Decimal(-1)
-            self.my_rebate = decimal.Decimal(-1)
-            self.my_provide = decimal.Decimal(-1)
-            self.example_cost = decimal.Decimal(0)
-            self.default_provide = decimal.Decimal(0)
-            self.value_up = decimal.Decimal(0)
-            self.value_down = decimal.Decimal(0)
-            self.tent_profit = decimal.Decimal(0)
-            self.period_profit = decimal.Decimal(0)
-            self.phase_profit = decimal.Decimal(0)
-            self.total_profit = decimal.Decimal(0)
-            self.aft_profit = decimal.Decimal(0)
+            s.my_cost = decimal.Decimal(0)
+            s.my_bid = decimal.Decimal(-1)
+            s.my_ask = decimal.Decimal(-1)
+            s.my_tax = decimal.Decimal(-1)
+            s.my_rebate = decimal.Decimal(-1)
+            s.my_provide = decimal.Decimal(-1)
+            s.example_cost = decimal.Decimal(0)
+            s.default_provide = decimal.Decimal(0)
+            s.value_up = decimal.Decimal(0)
+            s.value_down = decimal.Decimal(0)
+            s.tent_profit = decimal.Decimal(0)
+            s.period_profit = decimal.Decimal(0)
+            s.phase_profit = decimal.Decimal(0)
+            s.total_profit = decimal.Decimal(0)
+            s.aft_profit = decimal.Decimal(0)
 
         ps = session.AValuesParamSets[self.phase.key][self.key]
         if ps < 2:
