@@ -187,7 +187,8 @@ app.controller('MainCtrl', [ '$scope', 'SocketService', '$interval', function ($
             timerClear();
             $scope.isWaiting = $scope.subject.state_name === 'waiting';
             if ($scope.subject.time_left > 0 && !$scope.isWaiting) {
-                time_left = parseInt(($scope.subject.time_up - new Date().getTime()) / 1000, 10);
+                //time_left = parseInt(($scope.subject.time_up - new Date().getTime()) / 1000, 10);
+                time_left = $scope.subject.time_left;
                 if (time_left <= 0) {
                     time_left = 1;
                 }
