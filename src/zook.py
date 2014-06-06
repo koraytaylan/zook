@@ -474,7 +474,7 @@ class Group(object):
                 while session.AValueUp[ph][s.role][defp] > period.cost / 2:
                     defp += 1
                 s.default_provide = defp
-                s.my_provide = None
+                #s.my_provide = None
         elif group.stage == 1:
             for i, s in enumerate(ss):
                 if s.is_robot or s.is_suspended:
@@ -563,7 +563,7 @@ class Group(object):
                 return self.next_stage()
             for i, s in enumerate(ss):
                 s.time_left = session.time_for_input
-                s.my_bid = decimal.Decimal('-1')
+                #s.my_bid = decimal.Decimal('-1')
                 s.time_left = int(session.input_step_max * session.input_step_time)
             group.label_continue = 'Accept'
         elif group.stage == 9:
@@ -663,8 +663,17 @@ class Group(object):
                     s.is_robot = True
                     s.set_state('robot')
             if session.debug:
-                my_costs = list(str(s.my_cost) for s in ss)
-                print('my_costs ', ', '.join(my_costs))#, sum(my_costs))
+                ss.sort(key=lambda o: o.name)
+                provides = list(s.my_provide for s in ss)
+                bids = list(s.my_bid for s in ss)
+                asks = list(s.my_ask for s in ss)
+                costs = list(s.my_cost for s in ss)
+                rebates = list(s.my_rebate for s in ss)
+                print('my_provide'.ljust(10), ', '.join(str(o)[:3].ljust(3) for o in provides).ljust(30), 'sum:', str(sum(provides)).ljust(4), 'quantity_reached:', group.quantity_reached)
+                print('my_bid'.ljust(10), ', '.join(str(o)[:3].ljust(3) for o in bids).ljust(30), 'sum:', str(sum(bids)).ljust(4))
+                print('my_ask'.ljust(10), ', '.join(str(o)[:3].ljust(3) for o in asks).ljust(30), 'sum:', str(sum(asks)).ljust(4))
+                print('my_cost'.ljust(10), ', '.join(str(o)[:3].ljust(3) for o in costs).ljust(30), 'sum:', str(sum(costs)).ljust(4))
+                print('my_rebate'.ljust(10), ', '.join(str(o)[:3].ljust(3) for o in rebates).ljust(30), 'sum:', str(sum(rebates)).ljust(4))
             if ph < 3 or (not phase.is_skipped and pe < 23):
                 group.is_finished_period = True
         elif group.stage == 16:
