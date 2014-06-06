@@ -332,6 +332,7 @@ class Period(object):
             g.subjects[s.key] = s
             g.roles[s.key] = s.role
             s.my_cost = decimal.Decimal(0)
+            s.my_cost_unit = decimal.Decimal(0)
             s.my_bid = decimal.Decimal(-1)
             s.my_ask = decimal.Decimal(-1)
             s.my_tax = decimal.Decimal(-1)
@@ -716,6 +717,7 @@ class Subject(object):
         self.current_balance = decimal.Decimal(0)
 
         self.my_cost = decimal.Decimal(0)
+        self.my_cost_unit = decimal.Decimal(0)
         self.my_bid = decimal.Decimal(-1)
         self.my_ask = decimal.Decimal(-1)
         self.my_tax = decimal.Decimal(-1)

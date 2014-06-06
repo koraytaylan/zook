@@ -6,6 +6,11 @@
       <th width="75"><a ng-click="predicate = 'my_bid'; reverse=!reverse">Bid</a></th>
       <th width="75"><a ng-click="predicate = 'my_ask'; reverse=!reverse">Ask</a></th>
       <th width="75"><a ng-click="predicate = 'my_cost'; reverse=!reverse">Cost</a></th>
+      <th width="75"><a ng-click="predicate = 'my_cos_unit'; reverse=!reverse">Cost Unit</a></th>
+      <th width="75"><a ng-click="predicate = 'my_tax'; reverse=!reverse">Tax</a></th>
+      <th width="75"><a ng-click="predicate = 'my_rebate'; reverse=!reverse">Rebate</a></th>
+      <th width="75"><a ng-click="predicate = 'tent_profit'; reverse=!reverse">Tent Profit</a></th>
+      <th width="75"><a ng-click="predicate = 'aft_profit'; reverse=!reverse">Aft Profit</a></th>
       <th width="75"><a ng-click="predicate = 'period_profit'; reverse=!reverse">Period Profit</a></th>
       <th width="75"><a ng-click="predicate = 'phase_profit'; reverse=!reverse">Phase Profit</a></th>
       <th width="75"><a ng-click="predicate = 'total_profit'; reverse=!reverse">Total Profit</a></th>
@@ -20,14 +25,19 @@
     <tbody>
       <tr ng-repeat="s in getSubjects() | orderBy:predicate:reverse track by s.key">
         <td>{{s.name}}</td>
-        <td>{{s.my_provide | number:2}}</td>
-        <td>{{s.my_bid | number:2}}</td>
-        <td>{{s.my_ask | number:2}}</td>
-        <td>{{s.my_cost | number:2}}</td>
-        <td>{{s.period_profit | currency}}</td>
-        <td>{{s.phase_profit | currency}}</td>
-        <td>{{s.total_profit | currency}}</td>
-        <td>{{s.current_balance | currency}}</td>
+        <td class="text-right">{{s.my_provide | number:2}}</td>
+        <td class="text-right">{{s.my_bid | currency}}</td>
+        <td class="text-right">{{s.my_ask | currency}}</td>
+        <td class="text-right">{{s.my_cost | currency}}</td>
+        <td class="text-right">{{s.my_cost_unit | number:2}}</td>
+        <td class="text-right">{{s.my_tax | currency}}</td>
+        <td class="text-right">{{s.my_rebate | currency}}</td>
+        <td class="text-right">{{s.tent_profit | currency}}</td>
+        <td class="text-right">{{s.aft_profit | currency}}</td>
+        <td class="text-right">{{s.period_profit | currency}}</td>
+        <td class="text-right">{{s.phase_profit | currency}}</td>
+        <td class="text-right">{{s.total_profit | currency}}</td>
+        <td class="text-right">{{s.current_balance | currency}}</td>
         <td class="text-center">{{s.group.key}}</td>
         <td class="text-center">{{s.role}}</td>
         <td>{{s.group.stage_name}}</td>
