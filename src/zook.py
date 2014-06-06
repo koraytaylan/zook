@@ -39,6 +39,7 @@ class Session(object):
 
     def __init__(self):
         super(Session, self).__init__()
+        self.debug = False
         self.created_at = time.time()
         self.key = str(uuid.uuid4())
         self.subjects = {}
@@ -49,7 +50,6 @@ class Session(object):
         self.is_started = False
         self.is_paused = False
         self.is_finished = False
-        self.is_all_ready = False
 
         self.cost_low = decimal.Decimal('3.0')
         self.cost_high = decimal.Decimal('5.5')
@@ -474,7 +474,7 @@ class Group(object):
                 while session.AValueUp[ph][s.role][defp] > period.cost / 2:
                     defp += 1
                 s.default_provide = defp
-                s.my_provide = None
+                #s.my_provide = None
                 s.time_left = session.time_for_input
         elif group.stage == 1:
             for i, s in enumerate(ss):
@@ -564,7 +564,7 @@ class Group(object):
             if group.direction == -1:
                 return self.next_stage()
             for i, s in enumerate(ss):
-                s.my_bid = -1
+                #s.my_bid = -1
                 s.time_left = session.input_step_max * session.input_step_time
             group.label_continue = 'Accept'
         elif group.stage == 9:
@@ -602,7 +602,7 @@ class Group(object):
             if group.direction == 1:
                 return self.next_stage()
             for i, s in enumerate(ss):
-                s.my_ask = -1
+                #s.my_ask = -1
                 s.time_left = session.input_step_max * session.input_step_time
             group.label_continue = 'Accept'
         elif group.stage == 14:
@@ -663,6 +663,9 @@ class Group(object):
                 if s.current_balance < -session.maximum_loss:
                     s.is_robot = True
                     s.set_state('robot')
+            if session.debug:
+                my_costs = list(str(s.my_cost) for s in ss)
+                print('my_costs ', ', '.join(my_costs))#, sum(my_costs))
             if ph < 3 or (not phase.is_skipped and pe < 23):
                 group.is_finished_period = True
         elif group.stage == 16:
