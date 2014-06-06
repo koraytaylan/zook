@@ -201,9 +201,9 @@ class Session(object):
                     s.time_left = 1
                 current_price = (self.input_step_max * self.input_step_size) - (int(s.time_left / self.input_step_time) * self.input_step_size)
                 if s.group.stage == 8:
-                    s.my_bid = current_price
+                    s.my_bid = decimal.Decimal(str(current_price))
                 elif s.group.stage == 14:
-                    s.my_ask = current_price
+                    s.my_ask = decimal.Decimal(str(current_price))
 
     def resume(self):
         self.is_paused = False
@@ -331,21 +331,21 @@ class Period(object):
             s.role = roles[i % session.group_size]
             g.subjects[s.key] = s
             g.roles[s.key] = s.role
-            self.my_cost = decimal.Decimal(0)
-            self.my_bid = decimal.Decimal(-1)
-            self.my_ask = decimal.Decimal(-1)
-            self.my_tax = decimal.Decimal(-1)
-            self.my_rebate = decimal.Decimal(-1)
-            self.my_provide = decimal.Decimal(-1)
-            self.example_cost = decimal.Decimal(0)
-            self.default_provide = decimal.Decimal(0)
-            self.value_up = decimal.Decimal(0)
-            self.value_down = decimal.Decimal(0)
-            self.tent_profit = decimal.Decimal(0)
-            self.period_profit = decimal.Decimal(0)
-            self.phase_profit = decimal.Decimal(0)
-            self.total_profit = decimal.Decimal(0)
-            self.aft_profit = decimal.Decimal(0)
+            s.my_cost = decimal.Decimal(0)
+            s.my_bid = decimal.Decimal(-1)
+            s.my_ask = decimal.Decimal(-1)
+            s.my_tax = decimal.Decimal(-1)
+            s.my_rebate = decimal.Decimal(-1)
+            s.my_provide = decimal.Decimal(-1)
+            s.example_cost = decimal.Decimal(0)
+            s.default_provide = decimal.Decimal(0)
+            s.value_up = decimal.Decimal(0)
+            s.value_down = decimal.Decimal(0)
+            s.tent_profit = decimal.Decimal(0)
+            s.period_profit = decimal.Decimal(0)
+            s.phase_profit = decimal.Decimal(0)
+            s.total_profit = decimal.Decimal(0)
+            s.aft_profit = decimal.Decimal(0)
 
         ps = session.AValuesParamSets[self.phase.key][self.key]
         if ps < 2:
@@ -424,10 +424,10 @@ class Group(object):
         self.up_covered = -2
         self.down_covered = -2
 
-        self.sum_provides = 0
-        self.sum_halvers = 0
-        self.sum_bids = 0
-        self.sum_asks = 0
+        self.sum_provides = decimal.Decimal(0)
+        self.sum_halvers = decimal.Decimal(0)
+        self.sum_bids = decimal.Decimal(0)
+        self.sum_asks = decimal.Decimal(0)
 
         self.bids = {}
         self.asks = {}
@@ -474,8 +474,7 @@ class Group(object):
                 while session.AValueUp[ph][s.role][defp] > period.cost / 2:
                     defp += 1
                 s.default_provide = defp
-                #s.my_provide = None
-                s.time_left = session.time_for_input
+                s.my_provide = None
         elif group.stage == 1:
             for i, s in enumerate(ss):
                 if s.is_robot or s.is_suspended:
@@ -514,8 +513,7 @@ class Group(object):
                 if not_integer and group.some_refund == 1:
                     s.my_cost_unit = s.my_provide - (decimal.Decimal('0.5') / group.sum_halvers)
                 s.my_cost = period.cost * s.my_cost_unit
-                param = session.AValuesParamSets[ph][pe]
-                v = decimal.Decimal(str(session.AValues[param][s.role][group.quantity_reached]))
+                v = decimal.Decimal(str(session.AValues[param_set][s.role][group.quantity_reached]))
                 s.tent_profit = v - s.my_cost
                 s.apply_profit(s.tent_profit)
             if (ph > 1):
@@ -564,8 +562,9 @@ class Group(object):
             if group.direction == -1:
                 return self.next_stage()
             for i, s in enumerate(ss):
-                #s.my_bid = -1
-                s.time_left = session.input_step_max * session.input_step_time
+                s.time_left = session.time_for_input
+                s.my_bid = decimal.Decimal('-1')
+                s.time_left = int(session.input_step_max * session.input_step_time)
             group.label_continue = 'Accept'
         elif group.stage == 9:
             if group.direction == -1:
