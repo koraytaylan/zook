@@ -16,14 +16,12 @@ def main(argv):
         os.path.dirname(
             os.path.realpath(__file__)
             ),
-        os.path.pardir,
         public_path
         )
     data_path = os.path.join(
         os.path.dirname(
             os.path.realpath(__file__)
             ),
-        os.path.pardir,
         data_path
         )
     app = Application(public_path, data_path)
