@@ -205,11 +205,11 @@ module.exports = function (grunt) {
 
         bgShell: {
             server: {
-                cmd: 'python src/main.py',
+                cmd: 'python3 src/main.py',
                 bg: true
             },
             server_dist: {
-                cmd: 'python src/main.py dist',
+                cmd: 'python3 src/main.py dist',
                 bg: true
             }
         }
