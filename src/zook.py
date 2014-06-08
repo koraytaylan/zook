@@ -336,7 +336,7 @@ class Period(object):
             s.my_bid = decimal.Decimal(-1)
             s.my_ask = decimal.Decimal(-1)
             s.my_tax = decimal.Decimal(-1)
-            s.my_rebate = decimal.Decimal(-1)
+            s.my_rebate = decimal.Decimal(0)
             s.my_provide = decimal.Decimal(-1)
             s.example_cost = decimal.Decimal(0)
             s.default_provide = decimal.Decimal(0)
@@ -493,7 +493,7 @@ class Group(object):
                         if rpIn == rp:
                             break
                     s.my_provide = rp
-                elif s.my_provide is None:
+                elif s.my_provide is None or s.my_provide == decimal.Decimal(-1):
                     s.my_provide = s.default_provide
                 else:
                     s.my_provide = decimal.Decimal(str(s.my_provide))
@@ -665,16 +665,32 @@ class Group(object):
                     s.set_state('robot')
             if session.debug:
                 ss.sort(key=lambda o: o.name)
+                values = list(session.AValues[param_set][s.role][group.quantity_reached] for s in ss)
+                value_ups = list(s.value_up for s in ss)
+                value_downs = list(s.value_down for s in ss)
                 provides = list(s.my_provide for s in ss)
                 bids = list(s.my_bid for s in ss)
                 asks = list(s.my_ask for s in ss)
                 costs = list(s.my_cost for s in ss)
+                cost_units = list(s.my_cost_unit for s in ss)
                 rebates = list(s.my_rebate for s in ss)
-                print('my_provide'.ljust(10), ', '.join(str(o)[:3].ljust(3) for o in provides).ljust(30), 'sum:', str(sum(provides)).ljust(4), 'quantity_reached:', group.quantity_reached)
-                print('my_bid'.ljust(10), ', '.join(str(o)[:3].ljust(3) for o in bids).ljust(30), 'sum:', str(sum(bids)).ljust(4))
-                print('my_ask'.ljust(10), ', '.join(str(o)[:3].ljust(3) for o in asks).ljust(30), 'sum:', str(sum(asks)).ljust(4))
-                print('my_cost'.ljust(10), ', '.join(str(o)[:3].ljust(3) for o in costs).ljust(30), 'sum:', str(sum(costs)).ljust(4))
-                print('my_rebate'.ljust(10), ', '.join(str(o)[:3].ljust(3) for o in rebates).ljust(30), 'sum:', str(sum(rebates)).ljust(4))
+                taxes = list(s.my_tax for s in ss)
+                tent_profits = list(s.tent_profit for s in ss)
+                aft_profits = list(s.aft_profit for s in ss)
+                profits = list(s.period_profit for s in ss)
+                print('value'.ljust(20), ', '.join('{0:.2f}'.format(o).rjust(6) for o in values), '  sum:', '{0:.2f}'.format(sum(values)).rjust(6))
+                print('value_up'.ljust(20), ', '.join('{0:.2f}'.format(o).rjust(6) for o in value_ups), '  sum:', '{0:.2f}'.format(sum(value_ups)).rjust(6))
+                print('value_down'.ljust(20), ', '.join('{0:.2f}'.format(o).rjust(6) for o in value_downs), '  sum:', '{0:.2f}'.format(sum(value_downs)).rjust(6))
+                print('my_provide'.ljust(20), ', '.join('{0:.2f}'.format(o).rjust(6) for o in provides), '  sum:', '{0:.2f}'.format(sum(provides)).rjust(6), 'quantity_reached:', group.quantity_reached)
+                print('my_bid'.ljust(20), ', '.join('{0:.2f}'.format(o).rjust(6) for o in bids), '  sum:', '{0:.2f}'.format(sum(bids)).rjust(6))
+                print('my_ask'.ljust(20), ', '.join('{0:.2f}'.format(o).rjust(6) for o in asks), '  sum:', '{0:.2f}'.format(sum(asks)).rjust(6))
+                print('my_cost'.ljust(20), ', '.join('{0:.2f}'.format(o).rjust(6) for o in costs), '  sum:', '{0:.2f}'.format(sum(costs)).rjust(6))
+                print('my_cost_unit'.ljust(20), ', '.join('{0:.2f}'.format(o).rjust(6) for o in cost_units), '  sum:', '{0:.2f}'.format(sum(cost_units)).rjust(6))
+                print('my_rebate'.ljust(20), ', '.join('{0:.2f}'.format(o).rjust(6) for o in rebates), '  sum:', '{0:.2f}'.format(sum(rebates)).rjust(6))
+                print('my_tax'.ljust(20), ', '.join('{0:.2f}'.format(o).rjust(6) for o in taxes), '  sum:', '{0:.2f}'.format(sum(taxes)).rjust(6))
+                print('tent_profit'.ljust(20), ', '.join('{0:.2f}'.format(o).rjust(6) for o in tent_profits), '  sum:', '{0:.2f}'.format(sum(tent_profits)).rjust(6))
+                print('aft_profit'.ljust(20), ', '.join('{0:.2f}'.format(o).rjust(6) for o in aft_profits), '  sum:', '{0:.2f}'.format(sum(aft_profits)).rjust(6))
+                print('period_profit'.ljust(20), ', '.join('{0:.2f}'.format(o).rjust(6) for o in profits), '  sum:', '{0:.2f}'.format(sum(profits)).rjust(6))
             if ph < 3 or (not phase.is_skipped and pe < 23):
                 group.is_finished_period = True
         elif group.stage == 16:
@@ -721,7 +737,7 @@ class Subject(object):
         self.my_bid = decimal.Decimal(-1)
         self.my_ask = decimal.Decimal(-1)
         self.my_tax = decimal.Decimal(-1)
-        self.my_rebate = decimal.Decimal(-1)
+        self.my_rebate = decimal.Decimal(0)
         self.my_provide = decimal.Decimal(-1)
         self.example_cost = decimal.Decimal(0)
         self.default_provide = decimal.Decimal(0)

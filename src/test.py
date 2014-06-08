@@ -7,7 +7,7 @@ def set_values(ss, attr, values):
         setattr(ss[i], attr, v)
 
 def test(cost, provides, bids, asks):
-    print('-' * 40)
+    print('-' * 100)
     session = zook.Session()
     session.debug = True
     session.start_from_phase = 2
