@@ -475,7 +475,6 @@ class Group(object):
                 while session.AValueUp[ph][s.role][defp] > period.cost / 2:
                     defp += 1
                 s.default_provide = defp
-                #s.my_provide = None
         elif group.stage == 1:
             for i, s in enumerate(ss):
                 if s.is_robot or s.is_suspended:
@@ -564,7 +563,6 @@ class Group(object):
                 return self.next_stage()
             for i, s in enumerate(ss):
                 s.time_left = session.time_for_input
-                #s.my_bid = decimal.Decimal('-1')
                 s.time_left = int(session.input_step_max * session.input_step_time)
             group.label_continue = 'Accept'
         elif group.stage == 9:
@@ -602,7 +600,6 @@ class Group(object):
             if group.direction == 1:
                 return self.next_stage()
             for i, s in enumerate(ss):
-                #s.my_ask = -1
                 s.time_left = session.input_step_max * session.input_step_time
             group.label_continue = 'Accept'
         elif group.stage == 14:
@@ -655,7 +652,11 @@ class Group(object):
                 profit = s.aft_profit
                 is_aftermarket = ph == 1 or (ph != 2 and pe % 2 != 0)
                 if not is_aftermarket:
-                    profit = s.tent_profit + s.aft_profit
+                    # Otherwise tent profit is being added twice
+                    if ph == 0:
+                        profit = s.tent_profit + s.aft_profit
+                    else:
+                        profit = s.aft_profit
                 s.apply_profit(profit)
                 # Rollback balances if there was aftermarket and the outcome was 0
                 if not is_aftermarket and group.outcome == 0:
